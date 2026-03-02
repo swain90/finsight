@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finsight-api
+  namespace: finsight
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0       # Zero-downtime — never kill a pod until a new one is healthy
+  template:
+    metadata:
+      annotations:
+        # Forces pods to restart on configmap change (optional)
+        kubectl.kubernetes.io/restartedAt: "placeholder"
+    spec:
+      topologySpreadConstraints:
+        # Spread pods across nodes to survive a single node failure
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: finsight-api
+      containers:
+        - name: api
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"

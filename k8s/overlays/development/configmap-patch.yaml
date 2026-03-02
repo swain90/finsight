@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finsight-config
+  namespace: finsight
+data:
+  ASPNETCORE_ENVIRONMENT: "Development"
+  Plaid__BaseUrl: "https://sandbox.plaid.com"

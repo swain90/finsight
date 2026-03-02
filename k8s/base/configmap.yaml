@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finsight-config
+  namespace: finsight
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  JwtSettings__Issuer: "finsight-api"
+  JwtSettings__Audience: "finsight-client"
+  JwtSettings__ExpiryMinutes: "5"
+  Plaid__BaseUrl: "https://production.plaid.com"
+  Seq__ServerUrl: "http://seq.logging.svc.cluster.local:5341"

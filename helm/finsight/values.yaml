@@ -1,0 +1,77 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/your-org/finsight-api
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+  hosts:
+    - host: api.finsight.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: finsight-tls
+      hosts:
+        - api.finsight.example.com
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 8080
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+startupProbe:
+  httpGet:
+    path: /health/live
+    port: 8080
+  failureThreshold: 30
+  periodSeconds: 10
+
+secrets:
+  jwtSecretKey: ""
+  openAiApiKey: ""
+  plaidClientId: ""
+  plaidSecret: ""
+
+postgresql:
+  host: postgresql
+  port: 5432
+  database: finsight
+
+redis:
+  host: redis-master
+  port: 6379

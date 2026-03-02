@@ -1,0 +1,63 @@
+<!--
+  ╔══════════════════════════════════════════════════════════════════════════════╗
+  ║                    FINSIGHT — GLOBAL BUILD PROPERTIES                       ║
+  ║                                                                              ║
+  ║  Settings here apply to EVERY project in the solution automatically.        ║
+  ║  MSBuild imports this file before each project's .csproj.                   ║
+  ║                                                                              ║
+  ║  This approach provides:                                                     ║
+  ║  • Consistent language version, warnings, and nullable settings everywhere  ║
+  ║  • Enforced code analysis rules solution-wide                                ║
+  ║  • Centralized deterministic build settings for reproducible CI             ║
+  ╚══════════════════════════════════════════════════════════════════════════════╝
+-->
+<Project>
+  <PropertyGroup>
+    <!-- Target .NET 8.0 LTS (supported through November 2027) -->
+    <TargetFramework>net8.0</TargetFramework>
+
+    <!-- Use the latest stable C# language version -->
+    <LangVersion>latest</LangVersion>
+
+    <!-- CRITICAL for fintech: Nullable reference types ON for all projects.
+         This eliminates an entire class of NullReferenceException bugs.
+         Every reference type must be explicitly marked nullable with '?' -->
+    <Nullable>enable</Nullable>
+
+    <!-- Treat ALL compiler warnings as errors in CI (enforced quality gate).
+         Developers must fix warnings, not ignore them. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- Warn on specific important warnings even in dev -->
+    <WarningsAsErrors>CS8600;CS8602;CS8603;CS8618;CS8625</WarningsAsErrors>
+
+    <!-- Enable implicit usings — reduces boilerplate using statements.
+         Common namespaces like System, System.Linq, etc. are auto-included. -->
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Deterministic builds: same input always produces identical output.
+         Critical for supply-chain security and reproducible Docker images. -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Remove file paths from error messages (privacy + security) -->
+    <PathMap>$(MSBuildProjectDirectory)=.</PathMap>
+
+    <!-- Enable .NET analyzers — Microsoft's built-in code quality rules -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+
+    <!-- Analysis level: latest-recommended rules for maximum coverage -->
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+
+    <!-- Enforce Microsoft coding style rules (naming, layout, etc.) -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- Optimize builds in Release mode -->
+    <Optimize>true</Optimize>
+
+    <!-- Strip debug symbols in release for smaller binaries -->
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+</Project>

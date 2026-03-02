@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finsight-api
+  namespace: finsight
+spec:
+  replicas: 1          # Single replica in dev saves resources
+  template:
+    spec:
+      containers:
+        - name: api
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Development
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"

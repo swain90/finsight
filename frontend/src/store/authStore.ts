@@ -1,0 +1,27 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+interface User { userId: string; email: string; fullName: string; }
+
+interface AuthState {
+  user: User | null;
+  accessToken: string | null;
+  isAuthenticated: boolean;
+  setAuth: (user: User, token: string) => void;
+  setToken: (token: string) => void;
+  logout: () => void;
+}
+
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
+      setAuth: (user, token) => set({ user, accessToken: token, isAuthenticated: true }),
+      setToken: (token) => set({ accessToken: token }),
+      logout: () => set({ user: null, accessToken: null, isAuthenticated: false }),
+    }),
+    { name: 'finsight-auth', partialize: (s) => ({ user: s.user }) }
+  )
+);

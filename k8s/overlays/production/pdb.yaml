@@ -1,0 +1,12 @@
+# PodDisruptionBudget: ensures at least 2 pods are always running
+# during voluntary disruptions (node drains, rolling updates)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: finsight-api
+  namespace: finsight
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: finsight-api

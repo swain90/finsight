@@ -1,0 +1,24 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.log
+
+# Environment
+.env
+*.pfx
+*.p12
+
+# Migrations (generated, commit separately)
+**/Migrations/
+
+# Coverage
+coverage/
+*.coverage
+
+# Docker
+.dockerignore
+
+frontend/node_modules/
