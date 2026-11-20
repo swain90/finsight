@@ -11,14 +11,13 @@ obj/
 *.pfx
 *.p12
 
-# Migrations (generated, commit separately)
-**/Migrations/
-
 # Coverage
 coverage/
 *.coverage
 
-# Docker
-.dockerignore
-
 frontend/node_modules/
+# macOS
+.DS_Store
+
+# Redacted bank statement samples (never commit)
+samples/
