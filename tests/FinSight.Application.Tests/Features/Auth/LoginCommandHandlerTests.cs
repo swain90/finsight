@@ -17,7 +17,9 @@ public sealed class LoginCommandHandlerTests : HandlerTestBase
     private readonly IJwtService _jwt = Substitute.For<IJwtService>();
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
 
-    private LoginCommandHandler CreateSut() => new(_users, _uow, _jwt, _hasher);
+    private readonly IApplicationDbContext _db = CreateDbContext();
+
+    private LoginCommandHandler CreateSut() => new(_users, _uow, _db, _jwt, _hasher);
 
     private static readonly LoginCommand ValidCommand =
         new("alice@example.com", "Password@1", "127.0.0.1");
@@ -30,7 +32,7 @@ public sealed class LoginCommandHandlerTests : HandlerTestBase
         _users.GetByEmailAsync("alice@example.com", Arg.Any<CancellationToken>()).Returns(user);
         _hasher.Verify("Password@1", "$2a$12$real-hash").Returns(true);
         _jwt.GenerateAccessToken(user).Returns("access.tok");
-        _jwt.GenerateRefreshToken("127.0.0.1")
+        _jwt.GenerateRefreshToken(user.Id, "127.0.0.1")
             .Returns(RefreshToken.Create(user.Id, "refresh.tok", DateTimeOffset.UtcNow.AddDays(30), "127.0.0.1"));
 
         // Act

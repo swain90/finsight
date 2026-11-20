@@ -21,7 +21,7 @@ public sealed class BudgetsEndpointTests(FinSightWebApplicationFactory factory)
 
         var response = await client.PostAsJsonAsync("/api/v1/budgets", new
         {
-            Category = (int)TransactionCategory.Food,
+            Category = (int)TransactionCategory.GroceriesAndFood,
             LimitAmount = 500m,
             Currency = "CAD",
             Month = ThisMonth,
@@ -80,12 +80,12 @@ public sealed class BudgetsEndpointTests(FinSightWebApplicationFactory factory)
         // Create 2 budgets
         await client.PostAsJsonAsync("/api/v1/budgets", new
         {
-            Category = (int)TransactionCategory.Healthcare,
+            Category = (int)TransactionCategory.HealthAndMedical,
             LimitAmount = 400m, Currency = "USD", Month = ThisMonth, Year = ThisYear
         });
         await client.PostAsJsonAsync("/api/v1/budgets", new
         {
-            Category = (int)TransactionCategory.Shopping,
+            Category = (int)TransactionCategory.ShoppingAndClothing,
             LimitAmount = 600m, Currency = "USD", Month = ThisMonth, Year = ThisYear
         });
 
@@ -104,7 +104,7 @@ public sealed class BudgetsEndpointTests(FinSightWebApplicationFactory factory)
         // Create budget
         var createResp = await client.PostAsJsonAsync("/api/v1/budgets", new
         {
-            Category = (int)TransactionCategory.Education,
+            Category = (int)TransactionCategory.EducationAndWork,
             LimitAmount = 200m, Currency = "CAD", Month = ThisMonth, Year = ThisYear
         });
         var budgetId = await createResp.Content.ReadFromJsonAsync<Guid>();
@@ -125,7 +125,7 @@ public sealed class BudgetsEndpointTests(FinSightWebApplicationFactory factory)
 
         var createResp = await client.PostAsJsonAsync("/api/v1/budgets", new
         {
-            Category = (int)TransactionCategory.Travel,
+            Category = (int)TransactionCategory.TravelAndVacation,
             LimitAmount = 1000m, Currency = "USD", Month = ThisMonth, Year = ThisYear
         });
         var budgetId = await createResp.Content.ReadFromJsonAsync<Guid>();

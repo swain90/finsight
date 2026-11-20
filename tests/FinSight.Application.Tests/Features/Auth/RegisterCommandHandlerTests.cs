@@ -18,7 +18,9 @@ public sealed class RegisterCommandHandlerTests : HandlerTestBase
     private readonly IJwtService _jwt = Substitute.For<IJwtService>();
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
 
-    private RegisterCommandHandler CreateSut() => new(_users, _uow, _jwt, _hasher);
+    private readonly IApplicationDbContext _db = CreateDbContext();
+
+    private RegisterCommandHandler CreateSut() => new(_users, _uow, _db, _jwt, _hasher);
 
     private static readonly RegisterCommand ValidCommand = new(
         "alice@example.com", "Password@1", "Alice", "Nguyen");
@@ -31,7 +33,7 @@ public sealed class RegisterCommandHandlerTests : HandlerTestBase
             .Returns(false);
         _hasher.Hash("Password@1").Returns("$2a$12$hashed");
         _jwt.GenerateAccessToken(Arg.Any<Domain.Entities.User>()).Returns("access.jwt.token");
-        _jwt.GenerateRefreshToken(Arg.Any<string>())
+        _jwt.GenerateRefreshToken(Arg.Any<Guid>(), Arg.Any<string>())
             .Returns(Domain.Entities.RefreshToken.Create(Guid.NewGuid(), "refresh-token", DateTimeOffset.UtcNow.AddDays(30)));
 
         // Act
@@ -76,7 +78,7 @@ public sealed class RegisterCommandHandlerTests : HandlerTestBase
         const string fakeHash = "$2a$12$MOCKHASH";
         _hasher.Hash(rawPassword).Returns(fakeHash);
         _jwt.GenerateAccessToken(Arg.Any<Domain.Entities.User>()).Returns("tok");
-        _jwt.GenerateRefreshToken(Arg.Any<string>())
+        _jwt.GenerateRefreshToken(Arg.Any<Guid>(), Arg.Any<string>())
             .Returns(Domain.Entities.RefreshToken.Create(Guid.NewGuid(), "rt", DateTimeOffset.UtcNow.AddDays(30)));
 
         var command = ValidCommand with { Password = rawPassword };

@@ -16,7 +16,9 @@ public sealed class GetBudgetSummaryQueryHandlerTests : HandlerTestBase
     private readonly IBudgetRepository _budgets = Substitute.For<IBudgetRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
 
-    private GetBudgetSummaryQueryHandler CreateSut() => new(_budgets, _currentUser);
+    private readonly ITransactionRepository _transactions = Substitute.For<ITransactionRepository>();
+
+    private GetBudgetSummaryQueryHandler CreateSut() => new(_budgets, _transactions, _currentUser);
 
     [Fact]
     public async Task Handle_WithBudgets_ShouldComputeCorrectTotals()
@@ -28,12 +30,23 @@ public sealed class GetBudgetSummaryQueryHandlerTests : HandlerTestBase
 
         var budgets = new List<Budget>
         {
-            CreateBudgetWithSpending(userId, TransactionCategory.Food, limit: 500m, spent: 350m),
+            CreateBudgetWithSpending(userId, TransactionCategory.GroceriesAndFood, limit: 500m, spent: 350m),
             CreateBudgetWithSpending(userId, TransactionCategory.Transportation, limit: 200m, spent: 250m),
         };
 
         _budgets.GetByUserIdAsync(userId, 6, 2025, Arg.Any<CancellationToken>())
             .Returns(budgets.AsReadOnly());
+
+        // Spending is derived from the month's debit transactions, not budget counters.
+        var account = CreateAccount(userId);
+        var june = new DateTimeOffset(2025, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        var transactions = new List<Transaction>
+        {
+            account.RecordTransaction("Loblaws", CAD(350m), TransactionType.Debit, june, TransactionCategory.GroceriesAndFood),
+            account.RecordTransaction("Presto", CAD(250m), TransactionType.Debit, june, TransactionCategory.Transportation),
+        };
+        _transactions.GetByUserIdAsync(userId, Arg.Any<DateTimeOffset>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(transactions.AsReadOnly());
 
         // Act
         var result = await CreateSut().Handle(new GetBudgetSummaryQuery(6, 2025), CancellationToken.None);

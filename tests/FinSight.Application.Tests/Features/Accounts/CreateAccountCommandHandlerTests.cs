@@ -17,7 +17,7 @@ public sealed class CreateAccountCommandHandlerTests : HandlerTestBase
     private CreateAccountCommandHandler CreateSut() => new(_accounts, _currentUser, _uow);
 
     private static readonly CreateAccountCommand ValidCommand =
-        new("TD Chequing", 1, "CAD", "TD Bank");
+        new("TD Chequing", AccountType.Checking, "CAD", "TD Bank");
 
     [Fact]
     public async Task Handle_AuthenticatedUser_ShouldCreateAccountAndReturnId()

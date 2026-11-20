@@ -1,4 +1,7 @@
 using Bogus;
+using FinSight.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using NSubstitute;
 using FinSight.Domain.Entities;
 using FinSight.Domain.Enums;
 using FinSight.Domain.ValueObjects;
@@ -30,6 +33,18 @@ public abstract class HandlerTestBase
             Faker.Company.CompanyName());
         account.ClearDomainEvents();
         return account;
+    }
+
+    /// <summary>Db context substitute whose DbSets accept Add/AddAsync without a real database.</summary>
+    internal static IApplicationDbContext CreateDbContext()
+    {
+        var db = Substitute.For<IApplicationDbContext>();
+        db.Users.Returns(Substitute.For<DbSet<User>>());
+        db.Accounts.Returns(Substitute.For<DbSet<Account>>());
+        db.Transactions.Returns(Substitute.For<DbSet<Transaction>>());
+        db.Budgets.Returns(Substitute.For<DbSet<Budget>>());
+        db.RefreshTokens.Returns(Substitute.For<DbSet<RefreshToken>>());
+        return db;
     }
 
     protected static Money CAD(decimal amount) => new(amount, "CAD");

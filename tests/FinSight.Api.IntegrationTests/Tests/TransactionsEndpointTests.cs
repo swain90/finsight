@@ -34,7 +34,7 @@ public sealed class TransactionsEndpointTests(FinSightWebApplicationFactory fact
             Currency = "CAD",
             Type = (int)TransactionType.Credit,
             OccurredAt = DateTimeOffset.UtcNow,
-            Category = (int)TransactionCategory.Income
+            Category = (int)TransactionCategory.Salary
         });
 
         txResp.StatusCode.Should().Be(HttpStatusCode.Created);
