@@ -13,7 +13,7 @@ public sealed class Account : BaseEntity
     public Guid UserId { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public AccountType Type { get; private set; }
-    public Money Balance { get; private set; } = Money.Zero("USD");
+    public Money Balance { get; private set; } = Money.Zero(Money.DefaultCurrency);
     public string? InstitutionName { get; private set; }
     public string? PlaidAccountId { get; private set; }  // external reference
     public bool IsActive { get; private set; } = true;
@@ -24,7 +24,7 @@ public sealed class Account : BaseEntity
 
     private Account() { }  // EF Core
 
-    public static Account Create(Guid userId, string name, AccountType type, string currency = "USD", string? institutionName = null)
+    public static Account Create(Guid userId, string name, AccountType type, string currency = Money.DefaultCurrency, string? institutionName = null)
     {
         var account = new Account
         {

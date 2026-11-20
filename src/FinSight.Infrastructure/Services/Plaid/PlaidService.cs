@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using FinSight.Application.Common.Interfaces;
+using FinSight.Domain.ValueObjects;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -43,7 +44,7 @@ public sealed class PlaidService(
         return result?.Accounts?.Select(a => new PlaidAccount(
             a.AccountId, a.Name, a.Type,
             a.Balances?.Current ?? 0,
-            a.Balances?.IsoCurrencyCode ?? "USD")).ToList() ?? [];
+            a.Balances?.IsoCurrencyCode ?? Money.DefaultCurrency)).ToList() ?? [];
     }
 
     public async Task<IReadOnlyList<PlaidTransaction>> GetTransactionsAsync(

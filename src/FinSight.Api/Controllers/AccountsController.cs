@@ -1,5 +1,6 @@
 using FinSight.Application.Features.Accounts.Commands.CreateAccount;
 using FinSight.Application.Features.Accounts.Queries.GetAccounts;
+using FinSight.Domain.ValueObjects;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -38,6 +39,6 @@ public class AccountsController(IMediator mediator) : ControllerBase
 public sealed record CreateAccountRequest(
     string Name,
     FinSight.Domain.Enums.AccountType Type,
-    string Currency = "USD",
+    string Currency = Money.DefaultCurrency,
     string? InstitutionName = null
 );

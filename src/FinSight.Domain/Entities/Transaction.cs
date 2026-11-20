@@ -8,7 +8,7 @@ public sealed class Transaction : BaseEntity
 {
     public Guid AccountId { get; private set; }
     public string Description { get; private set; } = string.Empty;
-    public Money Amount { get; private set; } = Money.Zero("USD");
+    public Money Amount { get; private set; } = Money.Zero(Money.DefaultCurrency);
     public TransactionType Type { get; private set; }
     public TransactionCategory Category { get; private set; }
     public string? MerchantName { get; private set; }

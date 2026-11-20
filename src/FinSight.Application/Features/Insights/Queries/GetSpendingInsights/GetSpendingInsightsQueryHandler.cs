@@ -2,6 +2,7 @@ using FinSight.Application.Common.Interfaces;
 using FinSight.Domain.Common;
 using FinSight.Domain.Enums;
 using FinSight.Domain.Repositories;
+using FinSight.Domain.ValueObjects;
 using MediatR;
 
 namespace FinSight.Application.Features.Insights.Queries.GetSpendingInsights;
@@ -27,7 +28,7 @@ public sealed class GetSpendingInsightsQueryHandler(
 
         var totalSpent = debits.Sum(t => t.Amount.Amount);
         var totalIncome = credits.Sum(t => t.Amount.Amount);
-        var currency = transactions.FirstOrDefault()?.Amount.Currency ?? "USD";
+        var currency = transactions.FirstOrDefault()?.Amount.Currency ?? Money.DefaultCurrency;
 
         // Category breakdown
         var breakdown = debits
