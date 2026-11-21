@@ -47,6 +47,15 @@ public enum TransactionType
 /// These categories align with common personal finance frameworks
 /// (Mint, YNAB, Personal Capital) for user familiarity.
 /// </summary>
+public enum TransactionKind
+{
+    Regular = 0,
+    Transfer = 1,
+    OwnerPay = 2,
+    InvestmentTrade = 3,
+    PendingTransfer = 4
+}
+
 public enum TransactionCategory
 {
     /// <summary>Not yet categorized — triggers ML categorization job.</summary>
@@ -95,6 +104,8 @@ public enum TransactionCategory
     InvestmentIncome = 42,
     /// <summary>Tax refunds, government benefits.</summary>
     GovernmentBenefits = 43,
+    /// <summary>Salary or dividends paid to the owner by their corporation.</summary>
+    PayFromCorporation = 44,
 
     // ---- OTHER ------------------------------------------------------------
     /// <summary>Education: tuition, books, courses, software tools.</summary>

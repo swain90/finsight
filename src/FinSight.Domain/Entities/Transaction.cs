@@ -1,5 +1,6 @@
 using FinSight.Domain.Common;
 using FinSight.Domain.Enums;
+using FinSight.Domain.Exceptions;
 using FinSight.Domain.ValueObjects;
 
 namespace FinSight.Domain.Entities;
@@ -16,6 +17,11 @@ public sealed class Transaction : BaseEntity
     public bool IsAnomaly { get; private set; }
     public string? Notes { get; private set; }
     public string? PlaidTransactionId { get; private set; }
+    public TransactionKind Kind { get; private set; } = TransactionKind.Regular;
+    public Guid? TransferGroupId { get; private set; }
+    public Guid? ImportBatchId { get; private set; }
+    public string? ImportFingerprint { get; private set; }  // max 64
+    public bool IsTransferDismissed { get; private set; }
 
     public Account Account { get; private set; } = null!;
 
@@ -28,7 +34,11 @@ public sealed class Transaction : BaseEntity
         TransactionType type,
         DateTimeOffset occurredAt,
         TransactionCategory category,
-        string? merchantName)
+        string? merchantName,
+        Account? account = null,
+        TransactionKind kind = TransactionKind.Regular,
+        Guid? importBatchId = null,
+        string? fingerprint = null)
     {
         return new Transaction
         {
@@ -38,7 +48,11 @@ public sealed class Transaction : BaseEntity
             Type = type,
             OccurredAt = occurredAt,
             Category = category,
-            MerchantName = merchantName?.Trim()
+            MerchantName = merchantName?.Trim(),
+            Kind = kind,
+            ImportBatchId = importBatchId,
+            ImportFingerprint = fingerprint,
+            Account = account!
         };
     }
 
@@ -63,6 +77,38 @@ public sealed class Transaction : BaseEntity
     public void LinkToPlaid(string plaidTransactionId)
     {
         PlaidTransactionId = plaidTransactionId;
+        SetUpdatedAt();
+    }
+
+    public void MarkPaired(Guid transferGroupId, TransactionKind kind, TransactionCategory? category = null)
+    {
+        if (kind is not (TransactionKind.Transfer or TransactionKind.OwnerPay))
+            throw new DomainException("A paired transaction must be a Transfer or OwnerPay.");
+
+        TransferGroupId = transferGroupId;
+        Kind = kind;
+        if (category.HasValue) Category = category.Value;
+        SetUpdatedAt();
+    }
+
+    public void MarkPendingTransfer()
+    {
+        Kind = TransactionKind.PendingTransfer;
+        SetUpdatedAt();
+    }
+
+    public void MarkNotTransfer()
+    {
+        Kind = TransactionKind.Regular;
+        TransferGroupId = null;
+        IsTransferDismissed = true;
+        SetUpdatedAt();
+    }
+
+    public void Unpair()
+    {
+        Kind = TransactionKind.PendingTransfer;
+        TransferGroupId = null;
         SetUpdatedAt();
     }
 }

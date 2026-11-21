@@ -13,3 +13,11 @@ public static class AccountTypeExtensions
     public static bool IsRegistered(this AccountType type) =>
         type is AccountType.Tfsa or AccountType.Rrsp or AccountType.Fhsa;
 }
+
+public static class TransactionCategoryExtensions
+{
+    public static bool IsIncome(this TransactionCategory category) =>
+        category is TransactionCategory.Salary or TransactionCategory.FreelanceIncome
+            or TransactionCategory.InvestmentIncome or TransactionCategory.GovernmentBenefits
+            or TransactionCategory.PayFromCorporation;
+}

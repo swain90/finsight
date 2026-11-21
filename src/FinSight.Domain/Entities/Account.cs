@@ -59,16 +59,43 @@ public sealed class Account : BaseEntity
         if (!IsActive)
             throw new DomainException("Cannot record transactions on an inactive account.");
 
-        var transaction = Transaction.Create(Id, description, amount, type, occurredAt, category, merchantName);
+        var transaction = Transaction.Create(Id, description, amount, type, occurredAt, category, merchantName, this);
 
-        Balance = type == TransactionType.Credit
-            ? Balance.Add(amount)
-            : Balance.Subtract(amount);
+        // Liabilities store a positive amount owed: debits increase it, credits reduce it.
+        var increases = Type.IsLiability() ? type == TransactionType.Debit : type == TransactionType.Credit;
+        Balance = increases ? Balance.Add(amount) : Balance.Subtract(amount);
 
         _transactions.Add(transaction);
         SetUpdatedAt();
         AddDomainEvent(new TransactionRecordedEvent(transaction.Id, Id, UserId, amount, type));
 
+        return transaction;
+    }
+
+    /// <summary>Records an imported statement row. Does not change <see cref="Balance"/>.</summary>
+    public Transaction ImportTransaction(
+        string description,
+        Money amount,
+        TransactionType type,
+        DateTimeOffset occurredAt,
+        TransactionCategory category,
+        TransactionKind kind,
+        Guid importBatchId,
+        string fingerprint,
+        string? merchantName = null)
+    {
+        if (!IsActive)
+            throw new DomainException("Cannot import transactions into an inactive account.");
+        if (amount.Currency != Balance.Currency)
+            throw new DomainException($"Transaction currency {amount.Currency} does not match account currency {Balance.Currency}.");
+        if (kind is TransactionKind.Transfer or TransactionKind.OwnerPay)
+            throw new DomainException("Imported transactions cannot start as Transfer or OwnerPay.");
+
+        var transaction = Transaction.Create(Id, description, amount, type, occurredAt, category, merchantName,
+            this, kind, importBatchId, fingerprint);
+
+        _transactions.Add(transaction);
+        SetUpdatedAt();
         return transaction;
     }
 
