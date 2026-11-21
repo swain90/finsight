@@ -1,5 +1,6 @@
 using FinSight.Application.Common.Interfaces;
 using FinSight.Application.Features.Reports.Queries.GetCorporationSummary;
+using FinSight.Application.Features.Reports.Queries.GetNetWorth;
 using FinSight.Application.Features.Reports.Queries.GetPersonalIncome;
 using FinSight.Application.Tests.Common;
 using FinSight.Domain.Entities;
@@ -100,5 +101,61 @@ public sealed class ReportQueriesTests : HandlerTestBase
         result.Value.PayFromCorporation.Should().Be(6000m);
         result.Value.OtherTaxableIncome.Should().Be(1000m);
         result.Value.TaxShelteredInvestmentIncome.Should().Be(80m);
+    }
+
+    [Fact]
+    public async Task CorporationSummary_ClosingBalance_IncludesInactiveCorporationAccount()
+    {
+        var user = CreateUser();
+        _users.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(user);
+        var active = Acct(_userId, AccountType.Checking, AccountOwner.Corporation);
+        var closed = Acct(_userId, AccountType.Savings, AccountOwner.Corporation);
+        active.UpdateBalance(new(1000m, "CAD"));
+        closed.UpdateBalance(new(250m, "CAD"));
+        closed.Deactivate();
+        _accounts.GetByUserIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(new List<Account> { active, closed });
+        _transactions.GetByUserIdAsync(_userId, Arg.Any<DateTimeOffset>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Transaction>());
+
+        var sut = new GetCorporationSummaryQueryHandler(_transactions, _accounts, _users, _currentUser,
+            new FixedTime(new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero)));
+        var result = await sut.Handle(new GetCorporationSummaryQuery(null), CancellationToken.None);
+
+        result.Value.ClosingBalance.Should().Be(1250m);
+    }
+
+    [Fact]
+    public async Task NetWorth_IncludesInactiveAccountInCurrentAndHistory()
+    {
+        var snapshots = Substitute.For<IBalanceSnapshotRepository>();
+        var active = Acct(_userId, AccountType.Savings, AccountOwner.Personal);
+        var closed = Acct(_userId, AccountType.Tfsa, AccountOwner.Personal);
+        active.UpdateBalance(new(5000m, "CAD"));
+        closed.UpdateBalance(new(0m, "CAD"));
+        closed.Deactivate();
+        _accounts.GetByUserIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(new List<Account> { active, closed });
+        BalanceSnapshot Snap(Account a, DateOnly d, decimal v) => BalanceSnapshot.Create(a.Id, d, new(v, "CAD"), null);
+        snapshots.GetByUserIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(new List<BalanceSnapshot>
+        {
+            Snap(active, new(2026, 5, 31), 4000m),
+            Snap(active, new(2026, 7, 31), 4800m),
+            Snap(closed, new(2026, 5, 31), 20000m),
+            Snap(closed, new(2026, 6, 30), 20000m),
+            Snap(closed, new(2026, 7, 15), 0m),
+        });
+
+        // Today = Aug 10 2026: window of 5 months = Apr..Aug month-ends.
+        var sut = new GetNetWorthQueryHandler(_accounts, snapshots, _currentUser,
+            new FixedTime(new DateTimeOffset(2026, 8, 10, 0, 0, 0, TimeSpan.Zero)));
+        var result = await sut.Handle(new GetNetWorthQuery(5), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Personal.Should().Be(5000m);
+        // Apr 30 has no snapshots anywhere: skipped. Window ends at Aug 31 (current month end).
+        result.Value.History.Select(p => (p.MonthEnd, p.Personal)).Should().Equal(
+            (new DateOnly(2026, 5, 31), 24000m),
+            (new DateOnly(2026, 6, 30), 24000m),
+            (new DateOnly(2026, 7, 31), 4800m),
+            (new DateOnly(2026, 8, 31), 4800m));
     }
 }

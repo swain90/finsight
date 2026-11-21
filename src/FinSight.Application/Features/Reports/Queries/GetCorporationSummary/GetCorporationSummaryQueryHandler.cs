@@ -39,7 +39,7 @@ public sealed class GetCorporationSummaryQueryHandler(
             .ToList();
 
         var accounts = await accountRepository.GetByUserIdAsync(userId, cancellationToken);
-        var closing = accounts.Where(a => a.Owner == AccountOwner.Corporation && a.IsActive).Sum(a => a.Balance.Amount);
+        var closing = accounts.Where(a => a.Owner == AccountOwner.Corporation).Sum(a => a.Balance.Amount);
 
         static decimal Revenue(IEnumerable<Domain.Entities.Transaction> ts) =>
             ts.Where(t => t.Kind == TransactionKind.Regular && t.Type == TransactionType.Credit).Sum(t => t.Amount.Amount);

@@ -24,7 +24,7 @@ public sealed class GetNetWorthQueryHandler(
             return Result.Failure<NetWorthDto>(Error.Custom("Reports.InvalidMonths", $"Months must be between 1 and {MaxMonths}."));
         var userId = currentUserService.UserId.Value;
 
-        var accounts = (await accountRepository.GetByUserIdAsync(userId, cancellationToken)).Where(a => a.IsActive).ToList();
+        var accounts = (await accountRepository.GetByUserIdAsync(userId, cancellationToken)).ToList();  // R20: include inactive accounts so history stays stable
         var snapshots = (await snapshotRepository.GetByUserIdAsync(userId, cancellationToken))
             .GroupBy(s => s.AccountId)
             .ToDictionary(g => g.Key, g => g.Select(s => (s.AsOf, s.Balance.Amount)).ToList());
