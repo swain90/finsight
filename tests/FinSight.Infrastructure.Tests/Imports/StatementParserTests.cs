@@ -90,4 +90,33 @@ public class StatementParserTests
         result.Error.Code.Should().Be("Import.Format");
         result.Error.Description.Should().Be("Row 3: invalid amount.");
     }
+
+    [Fact]
+    public void Parse_BlankLineMidFile_ReportsPhysicalLineNumbers()
+    {
+        var result = Parser(new FakeReader()).Parse(Csv(
+            "Date,Description,Amount\n2026-10-03,A,-1.00\n\n\n2026-10-04,B,-2.00\n"));
+
+        result.Value.Rows.Select(r => r.LineNumber).Should().Equal(2, 5);
+    }
+
+    [Fact]
+    public void Parse_QuotedFieldWithNewline_ReportsLineWhereRecordStarts()
+    {
+        var result = Parser(new FakeReader()).Parse(Csv(
+            "Date,Description,Amount\n2026-10-03,\"LINE ONE\nLINE TWO\",-1.00\n2026-10-04,B,-2.00\n"));
+
+        result.Value.Rows.Select(r => r.LineNumber).Should().Equal(2, 4);
+    }
+
+    [Fact]
+    public void Parse_MalformedCsv_FailsWithoutThrowing()
+    {
+        var act = () => Parser(new FakeReader()).Parse(Csv(
+            "Date,Description,Amount\n2026-10-03,\"unterminated,-1\n"));
+
+        var result = act.Should().NotThrow().Subject;
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Import.Malformed");
+    }
 }

@@ -18,7 +18,19 @@ public sealed class StatementParser(IEnumerable<IStatementReader> readers) : ISt
 
     public Result<ParsedStatement> Parse(Stream csv)
     {
-        var rows = ReadRows(csv);
+        List<CsvRow> rows;
+        try
+        {
+            rows = ReadRows(csv);
+        }
+        catch (CsvHelperException ex)
+        {
+            var line = ex.Context?.Parser?.RawRow;
+            var where = line is > 0 ? $" near row {line}" : string.Empty;
+            return Result.Failure<ParsedStatement>(
+                Error.Custom("Import.Malformed", $"The file could not be read as CSV{where}."));
+        }
+
         var firstRows = rows.Take(SniffRowCount).ToList();
 
         var matches = readers.Where(r => r.CanRead(firstRows)).ToList();
@@ -57,10 +69,9 @@ public sealed class StatementParser(IEnumerable<IStatementReader> readers) : ISt
             HasHeaderRecord = false,
             TrimOptions = TrimOptions.Trim,
             DetectDelimiter = false,
-            BadDataFound = null,
             MissingFieldFound = null,
-            ShouldSkipRecord = args => args.Row.ColumnCount == 0
-                || args.Row.Parser.Record!.All(string.IsNullOrWhiteSpace),
+            ShouldSkipRecord = args => args.Row.Parser.Record is not { } record
+                || record.All(string.IsNullOrWhiteSpace),
         };
 
         using var streamReader = new StreamReader(csv, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
@@ -70,7 +81,10 @@ public sealed class StatementParser(IEnumerable<IStatementReader> readers) : ISt
         while (csvReader.Read())
         {
             var fields = csvReader.Parser.Record!.Select(f => f.Trim()).ToList();
-            rows.Add(new CsvRow(csvReader.Parser.Row, fields, csvReader.Parser.RawRecord.TrimEnd('\r', '\n')));
+            var rawLine = csvReader.Parser.RawRecord.TrimEnd('\r', '\n');
+            // Parser.RawRow is the physical line where the record ENDS (Parser.Row ignores embedded newlines); report where it starts.
+            var startLine = csvReader.Parser.RawRow - rawLine.Count(c => c == '\n');
+            rows.Add(new CsvRow(startLine, fields, rawLine));
         }
 
         return rows;
