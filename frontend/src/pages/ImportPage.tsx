@@ -29,6 +29,7 @@ const Review = ({ batch, onClose, onCommitted }: ReviewProps) => {
   const { refetch } = useImport(batch.id);
   const [entries, setEntries] = useState<Record<string, BalanceEntry>>({});
   const [error, setError] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState(false);
 
   const included = useMemo(() => batch.rows.filter((r) => !r.isExcluded), [batch.rows]);
   const allUnassigned = batch.rows.length > 0 && batch.rows.every((r) => r.accountId === null);
@@ -59,6 +60,8 @@ const Review = ({ batch, onClose, onCommitted }: ReviewProps) => {
   };
 
   const assignAll = async (accountId: string) => {
+    if (assigning) return;
+    setAssigning(true);
     setError(null);
     // Sequential: the server recomputes duplicate fingerprints per account on every PATCH.
     try {
@@ -68,6 +71,8 @@ const Review = ({ batch, onClose, onCommitted }: ReviewProps) => {
     } catch (e) {
       setError(errorMessage(e));
       await refetch(); // reflect server state after a partial assignment
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -116,6 +121,7 @@ const Review = ({ batch, onClose, onCommitted }: ReviewProps) => {
             Account:{' '}
             <select
               aria-label="Account for all rows"
+              disabled={assigning}
               className={selectClass}
               value=""
               onChange={(e) => e.target.value && assignAll(e.target.value)}
