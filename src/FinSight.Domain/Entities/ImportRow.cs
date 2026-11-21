@@ -54,10 +54,13 @@ public sealed class ImportRow : BaseEntity
 
     public void AssignAccount(Guid accountId, string fingerprint, bool isDuplicate)
     {
+        var wasDuplicate = IsDuplicate;
         AccountId = accountId;
         Fingerprint = fingerprint;
         IsDuplicate = isDuplicate;
+        // Exclusion follows duplicate transitions; otherwise the user's manual choice is kept.
         if (isDuplicate) IsExcluded = true;
+        else if (wasDuplicate) IsExcluded = false;
         SetUpdatedAt();
     }
 

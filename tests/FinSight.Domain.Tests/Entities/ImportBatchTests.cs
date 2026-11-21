@@ -76,4 +76,38 @@ public class ImportBatchTests
     {
         Row(1, new DateOnly(2026, 10, 3), new string('x', 2000)).RawLine.Should().HaveLength(1000);
     }
+
+    [Fact]
+    public void AssignAccount_BecomingDuplicate_ExcludesRow()
+    {
+        var row = Row(2, new DateOnly(2026, 1, 5));
+
+        row.AssignAccount(Guid.NewGuid(), "fp", true);
+
+        row.IsDuplicate.Should().BeTrue();
+        row.IsExcluded.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AssignAccount_NoLongerDuplicate_IncludesRow()
+    {
+        var row = Row(2, new DateOnly(2026, 1, 5));
+        row.AssignAccount(Guid.NewGuid(), "fp", true);
+
+        row.AssignAccount(Guid.NewGuid(), "fp2", false);
+
+        row.IsDuplicate.Should().BeFalse();
+        row.IsExcluded.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AssignAccount_NonDuplicateToNonDuplicate_KeepsManualExclusion()
+    {
+        var row = Row(2, new DateOnly(2026, 1, 5));
+        row.SetExcluded(true);
+
+        row.AssignAccount(Guid.NewGuid(), "fp", false);
+
+        row.IsExcluded.Should().BeTrue();
+    }
 }

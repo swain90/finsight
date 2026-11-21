@@ -125,6 +125,65 @@ public class ReviewOperationsTests
         result.Value.IsExcluded.Should().BeTrue();
     }
 
+    private static string Fp(Guid accountId, int occurrence) =>
+        ImportFingerprint.Compute(accountId, new DateOnly(2026, 1, 5), 10m, TransactionType.Debit, "COFFEE", occurrence);
+
+    [Fact]
+    public async Task UpdateRow_AssignHigherLineFirst_DistinctFingerprints()
+    {
+        var acct = Acct();
+        Owns(acct);
+        var first = Row(2, "COFFEE");
+        var second = Row(3, "COFFEE");
+        var b = Batch(null, first, second);
+
+        await UpdateHandler().Handle(new UpdateImportRowCommand(b.Id, second.Id, null, null, acct.Id), default);
+        await UpdateHandler().Handle(new UpdateImportRowCommand(b.Id, first.Id, null, null, acct.Id), default);
+
+        first.Fingerprint.Should().Be(Fp(acct.Id, 0));
+        second.Fingerprint.Should().Be(Fp(acct.Id, 1));
+    }
+
+    [Fact]
+    public async Task UpdateRow_MoveRowOffAccount_RenumbersRemainingRows()
+    {
+        var a = Acct("A");
+        var other = Acct("B");
+        Owns(a, other);
+        var r1 = Row(2, "COFFEE");
+        var r2 = Row(3, "COFFEE");
+        var r3 = Row(4, "COFFEE");
+        var b = Batch(null, r1, r2, r3);
+        foreach (var r in new[] { r1, r2, r3 })
+            await UpdateHandler().Handle(new UpdateImportRowCommand(b.Id, r.Id, null, null, a.Id), default);
+
+        await UpdateHandler().Handle(new UpdateImportRowCommand(b.Id, r1.Id, null, null, other.Id), default);
+
+        r2.Fingerprint.Should().Be(Fp(a.Id, 0));
+        r3.Fingerprint.Should().Be(Fp(a.Id, 1));
+        r1.Fingerprint.Should().Be(Fp(other.Id, 0));
+    }
+
+    [Fact]
+    public async Task UpdateRow_MoveDuplicateToNonDuplicateAccount_IncludesRow()
+    {
+        var a = Acct("A");
+        var other = Acct("B");
+        Owns(a, other);
+        var row = Row(2, "COFFEE");
+        var b = Batch(null, row);
+        _transactions.GetExistingFingerprintsAsync(a.Id, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new HashSet<string> { Fp(a.Id, 0) });
+        await UpdateHandler().Handle(new UpdateImportRowCommand(b.Id, row.Id, null, null, a.Id), default);
+        row.IsExcluded.Should().BeTrue();
+
+        var result = await UpdateHandler().Handle(
+            new UpdateImportRowCommand(b.Id, row.Id, null, null, other.Id), default);
+
+        result.Value.IsDuplicate.Should().BeFalse();
+        result.Value.IsExcluded.Should().BeFalse();
+    }
+
     [Fact]
     public async Task UpdateRow_AssignInactiveAccount_Fails()
     {

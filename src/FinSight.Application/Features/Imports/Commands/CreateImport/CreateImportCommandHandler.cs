@@ -61,28 +61,18 @@ public sealed class CreateImportCommandHandler(
             return (Row: row, Normalized: normalized, Amount: Math.Round(row.Amount, 2), AccountId: accountId);
         }).ToList();
 
-        // Fingerprints, per account, with occurrence indexes over that account's rows in file order.
-        var fingerprints = new string?[resolved.Count];
+        // Fingerprints and duplicate flags, per account, over that account's rows in file order.
+        var fingerprints = new (string Fingerprint, bool IsDuplicate)?[resolved.Count];
         foreach (var group in resolved.Select((r, i) => (r, i)).Where(x => x.r.AccountId is not null)
                      .GroupBy(x => x.r.AccountId!.Value))
         {
             var items = group.ToList();
-            var occurrences = ImportFingerprint.OccurrenceIndexes(
-                items.Select(x => (x.r.Row.Date, x.r.Amount, x.r.Row.Type, x.r.Normalized)).ToList());
+            var results = await ImportRowFingerprinter.ComputeAsync(
+                group.Key,
+                items.Select(x => (x.r.Row.Date, x.r.Amount, x.r.Row.Type, x.r.Normalized)).ToList(),
+                transactionRepository, cancellationToken);
             for (var k = 0; k < items.Count; k++)
-            {
-                var x = items[k];
-                fingerprints[x.i] = ImportFingerprint.Compute(
-                    group.Key, x.r.Row.Date, x.r.Amount, x.r.Row.Type, x.r.Normalized, occurrences[k]);
-            }
-        }
-
-        var existing = new Dictionary<Guid, IReadOnlySet<string>>();
-        foreach (var group in resolved.Select((r, i) => (r, i)).Where(x => fingerprints[x.i] is not null)
-                     .GroupBy(x => x.r.AccountId!.Value))
-        {
-            var prints = group.Select(x => fingerprints[x.i]!).ToList();
-            existing[group.Key] = await transactionRepository.GetExistingFingerprintsAsync(group.Key, prints, cancellationToken);
+                fingerprints[items[k].i] = results[k];
         }
 
         var batch = ImportBatch.Create(userId, parsed.Institution, request.FileName);
@@ -103,7 +93,7 @@ public sealed class CreateImportCommandHandler(
                 new Money(amount, row.Currency), row.Type, category, kind, row.RawLine);
 
             if (accountId is { } id && fingerprints[i] is { } fp)
-                importRow.AssignAccount(id, fp, existing[id].Contains(fp));
+                importRow.AssignAccount(id, fp.Fingerprint, fp.IsDuplicate);
 
             batch.AddRow(importRow);
         }
