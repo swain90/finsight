@@ -111,15 +111,7 @@ public sealed class CreateImportCommandHandler(
         await batchRepository.AddAsync(batch, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var assignedIds = batch.Rows.Where(r => r.AccountId is not null).Select(r => r.AccountId!.Value).ToHashSet();
-        var shown = userAccounts
-            .Where(a => assignedIds.Contains(a.Id) || institutionAccounts.Any(c => c.Id == a.Id))
-            .ToList();
-        var snapshots = new Dictionary<Guid, BalanceSnapshot?>();
-        foreach (var account in shown)
-            snapshots[account.Id] = await snapshotRepository.GetLatestAsync(account.Id, null, cancellationToken);
-
-        return Result.Success(ImportDtoMapper.ToDto(batch, shown, snapshots));
+        return Result.Success(await ImportDtoLoader.BuildAsync(batch, userAccounts, snapshotRepository, cancellationToken));
     }
 
     private static Guid? PickAccount(IReadOnlyList<Account> candidates, string? externalRef)
