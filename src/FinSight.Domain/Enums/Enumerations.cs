@@ -145,7 +145,40 @@ public enum AccountType
     Loan = 7,
 
     /// <summary>Physical cash on hand tracked manually.</summary>
-    Cash = 8
+    Cash = 8,
+
+    /// <summary>Line of credit. Balance = amount owed (liability).</summary>
+    LineOfCredit = 9,
+
+    /// <summary>Tax-Free Savings Account (Canada).</summary>
+    Tfsa = 10,
+
+    /// <summary>Registered Retirement Savings Plan (Canada).</summary>
+    Rrsp = 11,
+
+    /// <summary>First Home Savings Account (Canada).</summary>
+    Fhsa = 12,
+
+    /// <summary>Cryptocurrency holdings.</summary>
+    Crypto = 13
+}
+
+/// <summary>Who owns an account: the individual or their corporation.</summary>
+public enum AccountOwner
+{
+    Personal = 0,
+    Corporation = 1
+}
+
+/// <summary>Financial institution an account is held at.</summary>
+public enum Institution
+{
+    Other = 0,
+    Cibc = 1,
+    Td = 2,
+    Mbna = 3,
+    Rbc = 4,
+    Wealthsimple = 5
 }
 
 /// <summary>

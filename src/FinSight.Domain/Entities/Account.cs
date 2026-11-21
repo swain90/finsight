@@ -15,6 +15,9 @@ public sealed class Account : BaseEntity
     public AccountType Type { get; private set; }
     public Money Balance { get; private set; } = Money.Zero(Money.DefaultCurrency);
     public string? InstitutionName { get; private set; }
+    public Institution Institution { get; private set; } = Institution.Other;
+    public AccountOwner Owner { get; private set; } = AccountOwner.Personal;
+    public string? ExternalAccountRef { get; private set; }  // max 50
     public string? PlaidAccountId { get; private set; }  // external reference
     public bool IsActive { get; private set; } = true;
     public DateTimeOffset? LastSyncedAt { get; private set; }
@@ -24,7 +27,10 @@ public sealed class Account : BaseEntity
 
     private Account() { }  // EF Core
 
-    public static Account Create(Guid userId, string name, AccountType type, string currency = Money.DefaultCurrency, string? institutionName = null)
+    public static Account Create(Guid userId, string name, AccountType type, string currency = Money.DefaultCurrency, string? institutionName = null,
+        Institution institution = Institution.Other,
+        AccountOwner owner = AccountOwner.Personal,
+        string? externalAccountRef = null)
     {
         var account = new Account
         {
@@ -32,7 +38,10 @@ public sealed class Account : BaseEntity
             Name = name.Trim(),
             Type = type,
             Balance = Money.Zero(currency),
-            InstitutionName = institutionName
+            InstitutionName = institutionName,
+            Institution = institution,
+            Owner = owner,
+            ExternalAccountRef = externalAccountRef
         };
 
         account.AddDomainEvent(new AccountCreatedEvent(account.Id, userId, name, type));
@@ -74,6 +83,16 @@ public sealed class Account : BaseEntity
     {
         Balance = newBalance;
         LastSyncedAt = DateTimeOffset.UtcNow;
+        SetUpdatedAt();
+    }
+
+    public void UpdateDetails(string name, AccountType type, Institution institution, AccountOwner owner, string? externalAccountRef)
+    {
+        Name = name.Trim();
+        Type = type;
+        Institution = institution;
+        Owner = owner;
+        ExternalAccountRef = externalAccountRef;
         SetUpdatedAt();
     }
 
