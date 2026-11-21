@@ -14,6 +14,19 @@ public class ImportFingerprintTests
         DescriptionNormalizer.Normalize(input).Should().Be(expected);
 
     [Fact]
+    public void Compute_FixedInput_MatchesGoldenValue()
+    {
+        // Pinned: stored fingerprints (unique per account) depend on this exact format. Changing it would
+        // make every re-import look new. Expected = SHA-256 of
+        // "0f8fad5bd9cb469fa16570867728950e|2026-11-01|4.50|Debit|TIM HORTONS|0", lowercase hex.
+        var fingerprint = ImportFingerprint.Compute(
+            Guid.Parse("0f8fad5b-d9cb-469f-a165-70867728950e"), new DateOnly(2026, 11, 1), 4.5m,
+            TransactionType.Debit, "TIM HORTONS", 0);
+
+        fingerprint.Should().Be("b166790d7aa5e73d1562d622b9d3d18b33bbed10b7929b202e0df91e3cdc5db6");
+    }
+
+    [Fact]
     public void Compute_SameInputs_SameFingerprint()
     {
         var accountId = Guid.NewGuid();
