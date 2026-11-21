@@ -23,11 +23,30 @@ public sealed class FinSightWebApplicationFactory : WebApplicationFactory<Progra
         .WithPassword("postgres_test")
         .Build();
 
-    public async Task InitializeAsync() => await _postgres.StartAsync();
+    public async Task InitializeAsync()
+    {
+        await _postgres.StartAsync();
+
+        // Apply the real migrations. EnsureCreated would silently do nothing here: Hangfire creates its
+        // own schema when the host starts, and EnsureCreated skips table creation if any table exists.
+        // Resolved from the built host, never via services.BuildServiceProvider() inside
+        // ConfigureServices (a second container freezes Serilog's bootstrap logger and the real host
+        // then fails with "The logger is already frozen").
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await db.Database.MigrateAsync();
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+
+        // Point everything that reads the connection string (EF, Hangfire storage, health checks)
+        // at the Testcontainers database rather than localhost.
+        builder.UseSetting("ConnectionStrings:DefaultConnection", _postgres.GetConnectionString());
+
+        // The "auth" rate limit (5/min) would 429 a suite that registers a user per test.
+        builder.UseSetting("RateLimiting:AuthPermitLimit", int.MaxValue.ToString());
 
         builder.ConfigureServices(services =>
         {
@@ -39,12 +58,6 @@ public sealed class FinSightWebApplicationFactory : WebApplicationFactory<Progra
             // Replace AI with deterministic test double
             services.RemoveAll<IAiInsightsService>();
             services.AddScoped<IAiInsightsService, NoOpAiInsightsService>();
-
-            // Create schema from EF model (no migrations needed in tests)
-            var sp = services.BuildServiceProvider();
-            using var scope = sp.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            db.Database.EnsureCreated();
         });
     }
 

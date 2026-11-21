@@ -73,6 +73,27 @@ public sealed class BudgetsEndpointTests(FinSightWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task GetBudgets_WithTwoBudgetsInMonth_ReturnsBoth()
+    {
+        var client = await factory.CreateAuthenticatedClientAsync();
+
+        foreach (var category in new[] { TransactionCategory.Transportation, TransactionCategory.Entertainment })
+        {
+            await client.PostAsJsonAsync("/api/v1/budgets", new
+            {
+                Category = (int)category,
+                LimitAmount = 100m, Currency = "CAD", Month = ThisMonth, Year = ThisYear
+            });
+        }
+
+        var response = await client.GetAsync($"/api/v1/budgets/{ThisYear}/{ThisMonth}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var budgets = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement[]>();
+        budgets.Should().HaveCount(2);
+    }
+
+    [Fact]
     public async Task GetBudgetSummary_ReturnsAggregatedTotals()
     {
         var client = await factory.CreateAuthenticatedClientAsync();
@@ -112,7 +133,7 @@ public sealed class BudgetsEndpointTests(FinSightWebApplicationFactory factory)
         // Update it
         var updateResp = await client.PutAsJsonAsync($"/api/v1/budgets/{budgetId}", new
         {
-            NewLimitAmount = 350m
+            NewLimit = 350m
         });
 
         updateResp.StatusCode.Should().Be(HttpStatusCode.NoContent);
