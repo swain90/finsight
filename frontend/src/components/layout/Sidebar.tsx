@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, CreditCard, ArrowLeftRight, PiggyBank, Sparkles, LogOut } from 'lucide-react';
+import { LayoutDashboard, CreditCard, ArrowLeftRight, PiggyBank, Sparkles, LogOut, Upload } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { clsx } from 'clsx';
 
@@ -7,6 +7,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/accounts', icon: CreditCard, label: 'Accounts' },
   { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
+  { to: '/import', icon: Upload, label: 'Import' },
   { to: '/budgets', icon: PiggyBank, label: 'Budgets' },
   { to: '/insights', icon: Sparkles, label: 'AI Insights' },
 ];

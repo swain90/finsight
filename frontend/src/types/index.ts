@@ -104,3 +104,72 @@ export interface CategoryBreakdown {
   transactionCount: number;
   percentageOfTotal: number;
 }
+
+// ─── Statement import ──────────────────────────────────────────────────────
+export interface ImportAccount {
+  accountId: string;
+  name: string;
+  type: string;
+  isLiability: boolean;
+  isInvestment: boolean;
+  previousBalance: number | null;
+  previousBalanceAsOf: string | null;
+}
+
+export interface ImportRow {
+  id: string;
+  lineNumber: number;
+  accountId: string | null;
+  date: string;
+  description: string;
+  amount: number;
+  type: string; // 'Debit' | 'Credit'
+  category: string; // TransactionCategory name
+  kindHint: string;
+  isDuplicate: boolean;
+  isExcluded: boolean;
+}
+
+export interface ImportBatch {
+  id: string;
+  institution: string;
+  fileName: string;
+  status: string; // 'PendingReview' | 'Committed' | 'Discarded'
+  periodStart: string | null;
+  periodEnd: string | null;
+  reconciliationWarning: string | null;
+  accounts: ImportAccount[];
+  rows: ImportRow[];
+}
+
+export interface ImportBatchSummary {
+  id: string;
+  institution: string;
+  fileName: string;
+  status: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+  rowCount: number;
+  createdAt: string;
+  committedAt: string | null;
+}
+
+export interface ReconciliationResult {
+  skipped: boolean;
+  skipReason: string | null;
+  expected: number | null;
+  difference: number | null;
+  isBalanced: boolean;
+}
+
+export interface ImportRowPatch {
+  category?: number;
+  isExcluded?: boolean;
+  accountId?: string;
+}
+
+export interface ClosingBalanceInput {
+  accountId: string;
+  closingBalance: number;
+  asOf: string;
+}

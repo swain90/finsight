@@ -1,5 +1,8 @@
 import axios, { AxiosError } from 'axios';
-import type { AppSettings, AuthResult } from '../types';
+import type {
+  AppSettings, AuthResult, ImportBatch, ImportBatchSummary, ImportRow, ImportRowPatch,
+  ReconciliationResult, ClosingBalanceInput,
+} from '../types';
 
 export const api = axios.create({
   baseURL: '/api/v1',
@@ -133,5 +136,53 @@ export const transactionsApi = {
   async record(payload: RecordTransactionPayload): Promise<string> {
     const { data } = await api.post<string>('/transactions', payload);
     return data;
+  },
+};
+
+/** Readable message from a failed request: ProblemDetails detail, then title, then a fallback. */
+export const errorMessage = (err: unknown, fallback = 'Something went wrong. Please try again.'): string => {
+  const e = err as AxiosError<{ detail?: string; title?: string }>;
+  return e?.response?.data?.detail || e?.response?.data?.title || fallback;
+};
+
+/** ProblemDetails title carries the error code (e.g. "Import.AlreadyImported"). */
+export const errorCode = (err: unknown): string | undefined =>
+  (err as AxiosError<{ title?: string }>)?.response?.data?.title;
+
+export const importsApi = {
+  async upload(file: File, accountId?: string): Promise<ImportBatch> {
+    const form = new FormData();
+    form.append('file', file);
+    if (accountId) form.append('accountId', accountId);
+    // Let the browser set the multipart boundary.
+    const { data } = await api.post<ImportBatch>('/imports', form, {
+      headers: { 'Content-Type': undefined as unknown as string },
+    });
+    return data;
+  },
+  async list(): Promise<ImportBatchSummary[]> {
+    const { data } = await api.get<ImportBatchSummary[]>('/imports');
+    return data;
+  },
+  async get(id: string): Promise<ImportBatch> {
+    const { data } = await api.get<ImportBatch>(`/imports/${id}`);
+    return data;
+  },
+  async updateRow(id: string, rowId: string, patch: ImportRowPatch): Promise<ImportRow> {
+    const { data } = await api.patch<ImportRow>(`/imports/${id}/rows/${rowId}`, patch);
+    return data;
+  },
+  async reconciliation(id: string, accountId: string, closingBalance: number): Promise<ReconciliationResult> {
+    const { data } = await api.get<ReconciliationResult>(`/imports/${id}/reconciliation`, {
+      params: { accountId, closingBalance },
+    });
+    return data;
+  },
+  async commit(id: string, balances: ClosingBalanceInput[]): Promise<ImportBatch> {
+    const { data } = await api.post<ImportBatch>(`/imports/${id}/commit`, { balances });
+    return data;
+  },
+  async remove(id: string): Promise<void> {
+    await api.delete(`/imports/${id}`);
   },
 };
