@@ -16,6 +16,9 @@
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
 
+    <!-- CSV statement parsing -->
+    <PackageReference Include="CsvHelper" />
+
     <!-- Password hashing -->
     <PackageReference Include="BCrypt.Net-Next" />
     <PackageReference Include="Bogus" />
