@@ -1,4 +1,6 @@
+using FinSight.Domain.Entities;
 using FinSight.Domain.Enums;
+using FinSight.Domain.Repositories;
 
 namespace FinSight.Application.Features.Imports.Common;
 
@@ -14,6 +16,24 @@ public sealed record ReconciliationResult(
 public static class ReconciliationCalculator
 {
     private const decimal Tolerance = 0.005m;
+
+    /// <summary>
+    /// The snapshot a statement closing on <paramref name="closingAsOf"/> is reconciled against: the latest one
+    /// dated strictly before the closing date (R25), so backfilling an older month never compares against a
+    /// newer statement. A null date means "the latest snapshot".
+    /// </summary>
+    public static Task<BalanceSnapshot?> PreviousSnapshotAsync(
+        IBalanceSnapshotRepository snapshots, Guid accountId, DateOnly? closingAsOf, CancellationToken cancellationToken) =>
+        snapshots.GetLatestAsync(accountId, closingAsOf?.AddDays(-1), cancellationToken);
+
+    /// <summary>
+    /// The account's included (not excluded) rows dated after <paramref name="previous"/>; rows on or before it
+    /// are already reflected in that snapshot (overlapping statements).
+    /// </summary>
+    public static IEnumerable<(decimal Amount, TransactionType Type)> RowsAfter(
+        IEnumerable<ImportRow> rows, Guid accountId, BalanceSnapshot? previous) =>
+        rows.Where(r => r.AccountId == accountId && !r.IsExcluded && (previous is null || r.OccurredOn > previous.AsOf))
+            .Select(r => (r.Amount.Amount, r.Type));
 
     /// <summary>Checks the closing balance of a statement against the expected balance.</summary>
     /// <param name="type">Account type; liabilities invert the sign convention.</param>

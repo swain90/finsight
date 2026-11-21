@@ -273,15 +273,41 @@ public class ReviewOperationsTests
         debit.AssignAccount(acct.Id, "b", false);
         excluded.AssignAccount(acct.Id, "c", false);
         excluded.SetExcluded(true);
-        _snapshots.GetLatestAsync(acct.Id, null, Arg.Any<CancellationToken>())
+        // R25: the previous snapshot is the latest one strictly before the closing date.
+        _snapshots.GetLatestAsync(acct.Id, new DateOnly(2026, 1, 30), Arg.Any<CancellationToken>())
             .Returns(BalanceSnapshot.Create(acct.Id, new DateOnly(2025, 12, 31), new Money(500m, "CAD"), null));
 
         var result = await new CheckReconciliationQueryHandler(_batches, _accounts, _snapshots, _user)
-            .Handle(new CheckReconciliationQuery(b.Id, acct.Id, 570m), default);
+            .Handle(new CheckReconciliationQuery(b.Id, acct.Id, 570m, new DateOnly(2026, 1, 31)), default);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Skipped.Should().BeFalse();
         result.Value.Expected.Should().Be(570m);
+        result.Value.IsBalanced.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CheckReconciliation_RowsOnOrBeforePreviousSnapshot_NotSummed()
+    {
+        var acct = Acct();
+        Owns(acct);
+        var before = ImportRow.Create(2, new DateOnly(2026, 1, 25), "BOOKS", null, new Money(20m, "CAD"),
+            TransactionType.Debit, TransactionCategory.Uncategorized, TransactionKind.Regular, "raw");
+        var onSnapshot = ImportRow.Create(3, new DateOnly(2026, 1, 31), "FEE", null, new Money(5m, "CAD"),
+            TransactionType.Debit, TransactionCategory.Uncategorized, TransactionKind.Regular, "raw");
+        var after = ImportRow.Create(4, new DateOnly(2026, 2, 10), "GAS", null, new Money(30m, "CAD"),
+            TransactionType.Debit, TransactionCategory.Uncategorized, TransactionKind.Regular, "raw");
+        var b = Batch(null, before, onSnapshot, after);
+        before.AssignAccount(acct.Id, "a", false);
+        onSnapshot.AssignAccount(acct.Id, "b", false);
+        after.AssignAccount(acct.Id, "c", false);
+        _snapshots.GetLatestAsync(acct.Id, new DateOnly(2026, 2, 19), Arg.Any<CancellationToken>())
+            .Returns(BalanceSnapshot.Create(acct.Id, new DateOnly(2026, 1, 31), new Money(970m, "CAD"), null));
+
+        var result = await new CheckReconciliationQueryHandler(_batches, _accounts, _snapshots, _user)
+            .Handle(new CheckReconciliationQuery(b.Id, acct.Id, 940m, new DateOnly(2026, 2, 20)), default);
+
+        result.Value.Expected.Should().Be(940m);
         result.Value.IsBalanced.Should().BeTrue();
     }
 }

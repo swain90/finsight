@@ -194,9 +194,15 @@ export const importsApi = {
     const { data } = await api.patch<ImportRow>(`/imports/${id}/rows/${rowId}`, patch);
     return data;
   },
-  async reconciliation(id: string, accountId: string, closingBalance: number): Promise<ReconciliationResult> {
+  /** `asOf` is the statement's closing date (yyyy-mm-dd); the check compares against the snapshot before it. */
+  async reconciliation(
+    id: string,
+    accountId: string,
+    closingBalance: number,
+    asOf?: string
+  ): Promise<ReconciliationResult> {
     const { data } = await api.get<ReconciliationResult>(`/imports/${id}/reconciliation`, {
-      params: { accountId, closingBalance },
+      params: { accountId, closingBalance, ...(asOf ? { asOf } : {}) },
     });
     return data;
   },

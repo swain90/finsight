@@ -28,10 +28,10 @@ public sealed class CheckReconciliationQueryHandler(
         if (account is null)
             return Result.Failure<ReconciliationResult>(Error.NotFound);
 
-        var snapshot = await snapshotRepository.GetLatestAsync(account.Id, null, cancellationToken);
-        var rows = batch.Rows
-            .Where(r => r.AccountId == account.Id && !r.IsExcluded)
-            .Select(r => (r.Amount.Amount, r.Type));
+        var closingAsOf = request.AsOf ?? batch.PeriodEnd;
+        var snapshot = await ReconciliationCalculator.PreviousSnapshotAsync(
+            snapshotRepository, account.Id, closingAsOf, cancellationToken);
+        var rows = ReconciliationCalculator.RowsAfter(batch.Rows, account.Id, snapshot);
 
         return Result.Success(ReconciliationCalculator.Check(
             account.Type, snapshot?.Balance.Amount, rows, request.ClosingBalance));

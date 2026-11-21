@@ -67,14 +67,15 @@ public class ImportsController(IMediator mediator) : ControllerBase
         return result.IsSuccess ? Ok(result.Value) : this.ToProblemResult(result.Error);
     }
 
-    /// <summary>Compare statement closing balance against the computed balance</summary>
+    /// <summary>Compare statement closing balance (as of the closing date `asOf`) against the computed balance</summary>
     [HttpGet("{id:guid}/reconciliation")]
     [ProducesResponseType(typeof(ReconciliationResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> CheckReconciliation(
-        Guid id, [FromQuery] Guid accountId, [FromQuery] decimal closingBalance, CancellationToken ct)
+        Guid id, [FromQuery] Guid accountId, [FromQuery] decimal closingBalance, [FromQuery] DateOnly? asOf,
+        CancellationToken ct)
     {
-        var result = await mediator.Send(new CheckReconciliationQuery(id, accountId, closingBalance), ct);
+        var result = await mediator.Send(new CheckReconciliationQuery(id, accountId, closingBalance, asOf), ct);
         return result.IsSuccess ? Ok(result.Value) : this.ToProblemResult(result.Error);
     }
 

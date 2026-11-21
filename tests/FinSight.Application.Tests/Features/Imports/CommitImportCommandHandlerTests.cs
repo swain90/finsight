@@ -141,7 +141,7 @@ public class CommitImportCommandHandlerTests
         row.AssignAccount(acct.Id, "fp1", false);
         var b = Batch([acct], row);
         var previous = acct.RecordBalanceSnapshot(new DateOnly(2025, 12, 31), new Money(100m, "CAD"), null);
-        _snapshots.GetLatestAsync(acct.Id, null, Arg.Any<CancellationToken>()).Returns(previous);
+        _snapshots.GetLatestAsync(acct.Id, new DateOnly(2026, 1, 30), Arg.Any<CancellationToken>()).Returns(previous);
 
         // expected 100 - 10 = 90; closing says 80 => off by -10
         await _handler.Handle(

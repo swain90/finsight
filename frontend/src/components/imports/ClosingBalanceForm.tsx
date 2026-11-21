@@ -40,12 +40,12 @@ const AccountBalance = ({ batchId, account, entry, rowsKey, onChange }: RowProps
     let cancelled = false;
     const timer = setTimeout(() => {
       importsApi
-        .reconciliation(batchId, account.accountId, balance)
+        .reconciliation(batchId, account.accountId, balance, entry.asOf || undefined)
         .then((r) => { if (!cancelled) { setResult(r); setError(null); } })
         .catch((e) => { if (!cancelled) { setResult(null); setError(errorMessage(e)); } });
     }, RECONCILE_DEBOUNCE_MS);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [batchId, account.accountId, balance, rowsKey]);
+  }, [batchId, account.accountId, balance, entry.asOf, rowsKey]);
 
   const label = account.isLiability ? 'Amount owed' : 'Closing balance';
 

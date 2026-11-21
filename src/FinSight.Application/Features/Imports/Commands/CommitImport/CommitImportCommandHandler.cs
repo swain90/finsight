@@ -76,15 +76,15 @@ public sealed class CommitImportCommandHandler(
             return AlreadyImported(collisions.Count);
         }
 
-        // Reconcile against the latest snapshot as it is BEFORE this import's snapshots are recorded.
+        // Reconcile against the latest snapshot dated before this statement's closing date (R25), read
+        // BEFORE this import's snapshots are recorded; only rows dated after that snapshot are summed.
         var warnings = new List<string>();
         foreach (var input in request.Balances)
         {
             var account = accountsById[input.AccountId];
-            var previous = await snapshotRepository.GetLatestAsync(account.Id, null, cancellationToken);
-            var rows = included
-                .Where(r => r.AccountId == account.Id)
-                .Select(r => (r.Amount.Amount, r.Type));
+            var previous = await ReconciliationCalculator.PreviousSnapshotAsync(
+                snapshotRepository, account.Id, input.AsOf, cancellationToken);
+            var rows = ReconciliationCalculator.RowsAfter(included, account.Id, previous);
             var check = ReconciliationCalculator.Check(account.Type, previous?.Balance.Amount, rows, input.ClosingBalance);
             if (!check.Skipped && !check.IsBalanced)
                 warnings.Add(string.Create(CultureInfo.GetCultureInfo("en-CA"), $"{account.Name}: off by {check.Difference:C}"));

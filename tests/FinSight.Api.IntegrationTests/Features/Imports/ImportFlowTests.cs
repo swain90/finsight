@@ -180,4 +180,56 @@ public sealed class ImportFlowTests(FinSightWebApplicationFactory factory) : ICl
         await CommitAsync(second.Id);
         (await TransactionsAsync(userId)).Should().HaveCount(2);
     }
+
+    private async Task<string?> WarningAsync(Guid batchId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        return (await db.ImportBatches.AsNoTracking().SingleAsync(b => b.Id == batchId)).ReconciliationWarning;
+    }
+
+    [Fact]
+    public async Task Commit_BackfilledOlderMonth_ReconcilesAgainstPreviousNotNewestSnapshot()
+    {
+        var userId = await NewUserAsync();
+        var account = await NewAccountAsync(userId, "Chequing", AccountType.Checking);
+        var dec = await UploadAsync(account, "2025-12-10,PAYROLL,1050.00");
+        await CommitAsync(dec.Id, new ClosingBalanceInput(account, 1050m, new DateOnly(2025, 12, 31)));
+        var feb = await UploadAsync(account, "2026-02-05,PAYROLL,100.00");
+        await CommitAsync(feb.Id, new ClosingBalanceInput(account, 1100m, new DateOnly(2026, 2, 28)));
+
+        // January arrives last: 1050 (Dec 31) - 50 = 1000 at Jan 31.
+        var jan = await UploadAsync(account, "2026-01-10,GROCER,-50.00");
+        var check = await SendAsync(new FinSight.Application.Features.Imports.Queries.CheckReconciliation
+            .CheckReconciliationQuery(jan.Id, account, 1000m, new DateOnly(2026, 1, 31)));
+        check.Value.Skipped.Should().BeFalse();
+        check.Value.Expected.Should().Be(1000m);
+        check.Value.IsBalanced.Should().BeTrue();
+        await CommitAsync(jan.Id, new ClosingBalanceInput(account, 1000m, new DateOnly(2026, 1, 31)));
+
+        (await WarningAsync(jan.Id)).Should().BeNull();
+        var reloaded = await SendAsync(new FinSight.Application.Features.Imports.Queries.GetImport.GetImportQuery(jan.Id));
+        var shown = reloaded.Value.Accounts.Single(a => a.AccountId == account);
+        shown.PreviousBalance.Should().Be(1050m);
+        shown.PreviousBalanceAsOf.Should().Be(new DateOnly(2025, 12, 31));
+    }
+
+    [Fact]
+    public async Task Commit_OverlappingStatements_SumsOnlyRowsAfterPreviousSnapshot()
+    {
+        var userId = await NewUserAsync();
+        var account = await NewAccountAsync(userId, "Chequing", AccountType.Checking);
+        var first = await UploadAsync(account, "2025-12-15,PAYROLL,1000.00");
+        await CommitAsync(first.Id, new ClosingBalanceInput(account, 1000m, new DateOnly(2025, 12, 31)));
+        var jan = await UploadAsync(account, "2026-01-05,COFFEE,-10.00", "2026-01-25,BOOKS,-20.00");
+        await CommitAsync(jan.Id, new ClosingBalanceInput(account, 970m, new DateOnly(2026, 1, 31)));
+
+        // A second export overlapping January: Jan 25 is already imported, Feb 10 is new.
+        var overlap = await UploadAsync(account, "2026-01-25,BOOKS,-20.00", "2026-02-10,GAS,-30.00");
+        overlap.Rows.Single(r => r.Description == "BOOKS").IsDuplicate.Should().BeTrue();
+        await CommitAsync(overlap.Id, new ClosingBalanceInput(account, 940m, new DateOnly(2026, 2, 20)));
+
+        (await WarningAsync(jan.Id)).Should().BeNull();
+        (await WarningAsync(overlap.Id)).Should().BeNull();
+    }
 }
