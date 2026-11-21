@@ -8,5 +8,8 @@ public sealed record CreateAccountCommand(
     string Name,
     AccountType Type,
     string Currency,
-    string? InstitutionName
+    string? InstitutionName,
+    Institution Institution = Institution.Other,
+    AccountOwner Owner = AccountOwner.Personal,
+    string? ExternalAccountRef = null
 ) : IRequest<Result<Guid>>;

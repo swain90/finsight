@@ -95,4 +95,52 @@ public sealed class AccountsEndpointTests(FinSightWebApplicationFactory factory)
 
         body.Should().NotContain("User A Secret Account");
     }
+
+    [Fact]
+    public async Task CreateAccount_WithOwnerAndInstitution_RoundTrips()
+    {
+        var client = await factory.CreateAuthenticatedClientAsync();
+
+        var create = await client.PostAsJsonAsync("/api/v1/accounts", new
+        {
+            Name = "RBC Business Chequing",
+            Type = (int)AccountType.Checking,
+            Currency = "CAD",
+            Institution = (int)Institution.Rbc,
+            Owner = (int)AccountOwner.Corporation,
+            ExternalAccountRef = "1234"
+        });
+        create.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var body = await (await client.GetAsync("/api/v1/accounts")).Content.ReadAsStringAsync();
+        body.Should().Contain("RBC Business Chequing");
+        body.Should().Contain("\"institution\":\"Rbc\"");
+        body.Should().Contain("\"owner\":\"Corporation\"");
+        body.Should().Contain("\"externalAccountRef\":\"1234\"");
+    }
+
+    [Fact]
+    public async Task UpdateAccount_Returns204()
+    {
+        var client = await factory.CreateAuthenticatedClientAsync();
+        var id = await (await client.PostAsJsonAsync("/api/v1/accounts", new
+        {
+            Name = "Old Name",
+            Type = (int)AccountType.Checking,
+            Currency = "CAD"
+        })).Content.ReadFromJsonAsync<Guid>();
+
+        var response = await client.PutAsJsonAsync($"/api/v1/accounts/{id}", new
+        {
+            Name = "New Name",
+            Type = (int)AccountType.Tfsa,
+            Institution = (int)Institution.Wealthsimple,
+            Owner = (int)AccountOwner.Personal,
+            ExternalAccountRef = (string?)null
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var body = await (await client.GetAsync("/api/v1/accounts")).Content.ReadAsStringAsync();
+        body.Should().Contain("New Name").And.Contain("Tfsa");
+    }
 }

@@ -11,13 +11,24 @@ export interface AuthResult {
 export interface Account {
   id: string;
   name: string;
-  type: 'Checking' | 'Savings' | 'CreditCard' | 'Investment' | 'Loan';
+  type: 'Checking' | 'Savings' | 'CreditCard' | 'Investment' | 'Retirement' | 'Mortgage' | 'Loan'
+    | 'Cash' | 'LineOfCredit' | 'Tfsa' | 'Rrsp' | 'Fhsa' | 'Crypto';
   balance: number;
   currency: string;
   institutionName?: string;
   isActive: boolean;
   lastSyncedAt?: string;
   createdAt: string;
+  institution: 'Other' | 'Cibc' | 'Td' | 'Mbna' | 'Rbc' | 'Wealthsimple';
+  owner: 'Personal' | 'Corporation';
+  externalAccountRef: string | null;
+  isLiability: boolean;
+  isInvestment: boolean;
+}
+
+export interface AppSettings {
+  corporateFiscalYearEndMonth: number;
+  corporateFiscalYearEndDay: number;
 }
 
 // ─── Transactions ───────────────────────────────────────────────────────────

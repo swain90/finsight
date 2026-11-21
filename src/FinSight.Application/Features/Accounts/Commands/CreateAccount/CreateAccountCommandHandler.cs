@@ -21,7 +21,10 @@ public sealed class CreateAccountCommandHandler(
             request.Name,
             request.Type,
             request.Currency,
-            request.InstitutionName);
+            request.InstitutionName,
+            request.Institution,
+            request.Owner,
+            request.ExternalAccountRef);
 
         await accountRepository.AddAsync(account, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);

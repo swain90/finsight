@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import type { AuthResult } from '../types';
+import type { AppSettings, AuthResult } from '../types';
 
 export const api = axios.create({
   baseURL: '/api/v1',
@@ -100,6 +100,31 @@ export const authApi = {
   async register(email: string, password: string, firstName: string, lastName: string): Promise<AuthResult> {
     const payload: RegisterPayload = { email, password, firstName, lastName };
     const { data } = await api.post<AuthResult>('/auth/register', payload);
+    return data;
+  },
+};
+
+export type AccountPayload = {
+  name: string;
+  type: number;
+  institution: number;
+  owner: number;
+  externalAccountRef: string | null;
+};
+
+export const accountsApi = {
+  async update(id: string, payload: AccountPayload): Promise<void> {
+    await api.put(`/accounts/${id}`, payload);
+  },
+};
+
+export const settingsApi = {
+  async get(): Promise<AppSettings> {
+    const { data } = await api.get<AppSettings>('/settings');
+    return data;
+  },
+  async update(payload: AppSettings): Promise<AppSettings> {
+    const { data } = await api.put<AppSettings>('/settings', payload);
     return data;
   },
 };
