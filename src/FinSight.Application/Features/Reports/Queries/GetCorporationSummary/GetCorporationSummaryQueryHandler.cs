@@ -10,6 +10,7 @@ namespace FinSight.Application.Features.Reports.Queries.GetCorporationSummary;
 public sealed class GetCorporationSummaryQueryHandler(
     ITransactionRepository transactionRepository,
     IAccountRepository accountRepository,
+    IBalanceSnapshotRepository snapshotRepository,
     IUserRepository userRepository,
     ICurrentUserService currentUserService,
     TimeProvider timeProvider) : IRequestHandler<GetCorporationSummaryQuery, Result<CorporationSummaryDto>>
@@ -38,8 +39,27 @@ public sealed class GetCorporationSummaryQueryHandler(
             .Where(t => t.Account is { Owner: AccountOwner.Corporation } && t.OccurredAt >= from && t.OccurredAt < to)
             .ToList();
 
-        var accounts = await accountRepository.GetByUserIdAsync(userId, cancellationToken);
-        var closing = accounts.Where(a => a.Owner == AccountOwner.Corporation).Sum(a => a.Balance.Amount);
+        // R26: assets minus liabilities (stored as positive amounts owed), each from its latest snapshot on or
+        // before the fiscal-year end. The running Balance stands in only for an account with no such snapshot,
+        // and only while the fiscal year is current. R20: inactive accounts are included.
+        var accounts = (await accountRepository.GetByUserIdAsync(userId, cancellationToken))
+            .Where(a => a.Owner == AccountOwner.Corporation)
+            .ToList();
+        var corporateIds = accounts.Select(a => a.Id).ToHashSet();
+        var snapshotsAtEnd = (await snapshotRepository.GetByUserIdAsync(userId, cancellationToken))
+            .Where(s => corporateIds.Contains(s.AccountId) && s.AsOf <= end)
+            .GroupBy(s => s.AccountId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.AsOf).ThenByDescending(s => s.CreatedAt).First());
+        var isCurrentYear = start <= today && today <= end;
+        decimal closing = 0m;
+        foreach (var account in accounts)
+        {
+            decimal? balance = snapshotsAtEnd.TryGetValue(account.Id, out var snapshot)
+                ? snapshot.Balance.Amount
+                : isCurrentYear ? account.Balance.Amount : null;
+            if (balance is { } amount)
+                closing += account.Type.IsLiability() ? -amount : amount;
+        }
 
         static decimal Revenue(IEnumerable<Domain.Entities.Transaction> ts) =>
             ts.Where(t => t.Kind == TransactionKind.Regular && t.Type == TransactionType.Credit).Sum(t => t.Amount.Amount);

@@ -23,12 +23,14 @@ public sealed class ReportQueriesTests : HandlerTestBase
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly IAccountRepository _accounts = Substitute.For<IAccountRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
+    private readonly IBalanceSnapshotRepository _snapshots = Substitute.For<IBalanceSnapshotRepository>();
     private readonly Guid _userId = Guid.NewGuid();
 
     public ReportQueriesTests()
     {
         _currentUser.IsAuthenticated.Returns(true);
         _currentUser.UserId.Returns(_userId);
+        _snapshots.GetByUserIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(new List<BalanceSnapshot>());
     }
 
     private static Account Acct(Guid userId, AccountType type, AccountOwner owner) =>
@@ -65,7 +67,7 @@ public sealed class ReportQueriesTests : HandlerTestBase
         _transactions.GetByUserIdAsync(_userId, Arg.Any<DateTimeOffset>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
             .Returns(new List<Transaction> { revenue, capital, pay, expense, persSpend });
 
-        var sut = new GetCorporationSummaryQueryHandler(_transactions, _accounts, _users, _currentUser,
+        var sut = new GetCorporationSummaryQueryHandler(_transactions, _accounts, _snapshots, _users, _currentUser,
             new FixedTime(new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero)));
         var result = await sut.Handle(new GetCorporationSummaryQuery(null), CancellationToken.None);
 
@@ -117,11 +119,87 @@ public sealed class ReportQueriesTests : HandlerTestBase
         _transactions.GetByUserIdAsync(_userId, Arg.Any<DateTimeOffset>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
             .Returns(new List<Transaction>());
 
-        var sut = new GetCorporationSummaryQueryHandler(_transactions, _accounts, _users, _currentUser,
+        var sut = new GetCorporationSummaryQueryHandler(_transactions, _accounts, _snapshots, _users, _currentUser,
             new FixedTime(new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero)));
         var result = await sut.Handle(new GetCorporationSummaryQuery(null), CancellationToken.None);
 
         result.Value.ClosingBalance.Should().Be(1250m);
+    }
+
+    [Fact]
+    public async Task CorporationSummary_ClosingBalance_SubtractsCorporateLiabilities()
+    {
+        _users.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(CreateUser());
+        var chequing = Acct(_userId, AccountType.Checking, AccountOwner.Corporation);
+        var card = Acct(_userId, AccountType.CreditCard, AccountOwner.Corporation);
+        var personal = Acct(_userId, AccountType.Checking, AccountOwner.Personal);
+        chequing.UpdateBalance(new(7000m, "CAD"));
+        card.UpdateBalance(new(300m, "CAD")); // amount owed
+        personal.UpdateBalance(new(50m, "CAD"));
+        _accounts.GetByUserIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(new List<Account> { chequing, card, personal });
+        _transactions.GetByUserIdAsync(_userId, Arg.Any<DateTimeOffset>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Transaction>());
+
+        var sut = new GetCorporationSummaryQueryHandler(_transactions, _accounts, _snapshots, _users, _currentUser,
+            new FixedTime(new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero)));
+        var result = await sut.Handle(new GetCorporationSummaryQuery(null), CancellationToken.None);
+
+        result.Value.ClosingBalance.Should().Be(6700m);
+    }
+
+    [Fact]
+    public async Task CorporationSummary_PastFiscalYear_UsesSnapshotsAtFiscalYearEnd()
+    {
+        _users.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(CreateUser());
+        var chequing = Acct(_userId, AccountType.Checking, AccountOwner.Corporation);
+        var card = Acct(_userId, AccountType.CreditCard, AccountOwner.Corporation);
+        var openedLater = Acct(_userId, AccountType.Savings, AccountOwner.Corporation);
+        chequing.UpdateBalance(new(9000m, "CAD"));
+        card.UpdateBalance(new(100m, "CAD"));
+        openedLater.UpdateBalance(new(777m, "CAD"));
+        _accounts.GetByUserIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(new List<Account> { chequing, card, openedLater });
+        BalanceSnapshot Snap(Account a, DateOnly d, decimal v) => BalanceSnapshot.Create(a.Id, d, new(v, "CAD"), null);
+        _snapshots.GetByUserIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(new List<BalanceSnapshot>
+        {
+            Snap(chequing, new(2025, 11, 30), 4000m),
+            Snap(chequing, new(2025, 12, 31), 5000m),
+            Snap(chequing, new(2026, 6, 30), 9000m),
+            Snap(card, new(2025, 11, 30), 400m),
+            Snap(card, new(2026, 7, 31), 100m),
+            Snap(openedLater, new(2026, 3, 31), 777m),
+        });
+        _transactions.GetByUserIdAsync(_userId, Arg.Any<DateTimeOffset>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Transaction>());
+
+        var sut = new GetCorporationSummaryQueryHandler(_transactions, _accounts, _snapshots, _users, _currentUser,
+            new FixedTime(new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero)));
+        var result = await sut.Handle(new GetCorporationSummaryQuery(2025), CancellationToken.None);
+
+        // Dec 31 2025: chequing 5000, card owes 400 (Nov 30); the savings account had no balance yet.
+        result.Value.ClosingBalance.Should().Be(4600m);
+    }
+
+    [Fact]
+    public async Task CorporationSummary_CurrentFiscalYear_PrefersSnapshotOverRunningBalance()
+    {
+        _users.GetByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(CreateUser());
+        var chequing = Acct(_userId, AccountType.Checking, AccountOwner.Corporation);
+        var cash = Acct(_userId, AccountType.Savings, AccountOwner.Corporation);
+        chequing.UpdateBalance(new(8100m, "CAD")); // e.g. a manual entry after the last snapshot
+        cash.UpdateBalance(new(20m, "CAD"));       // never imported: falls back to Balance
+        _accounts.GetByUserIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(new List<Account> { chequing, cash });
+        _snapshots.GetByUserIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(new List<BalanceSnapshot>
+        {
+            BalanceSnapshot.Create(chequing.Id, new(2026, 7, 31), new(8000m, "CAD"), null),
+        });
+        _transactions.GetByUserIdAsync(_userId, Arg.Any<DateTimeOffset>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Transaction>());
+
+        var sut = new GetCorporationSummaryQueryHandler(_transactions, _accounts, _snapshots, _users, _currentUser,
+            new FixedTime(new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero)));
+        var result = await sut.Handle(new GetCorporationSummaryQuery(null), CancellationToken.None);
+
+        result.Value.ClosingBalance.Should().Be(8020m);
     }
 
     [Fact]
