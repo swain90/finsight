@@ -32,7 +32,6 @@ const Review = ({ batch, onClose, onCommitted }: ReviewProps) => {
   const [assigning, setAssigning] = useState(false);
 
   const included = useMemo(() => batch.rows.filter((r) => !r.isExcluded), [batch.rows]);
-  const allUnassigned = batch.rows.length > 0 && batch.rows.every((r) => r.accountId === null);
   const unassignedIncluded = included.filter((r) => r.accountId === null).length;
 
   // Accounts that have at least one included row need a closing balance.
@@ -40,6 +39,13 @@ const Review = ({ batch, onClose, onCommitted }: ReviewProps) => {
     const ids = new Set(included.map((r) => r.accountId).filter((id): id is string => id !== null));
     return batch.accounts.filter((a) => ids.has(a.accountId));
   }, [included, batch.accounts]);
+
+  // One group per assigned account (null = not yet assigned), in file order.
+  const accountGroups = useMemo(() => {
+    const counts = new Map<string | null, number>();
+    for (const r of batch.rows) counts.set(r.accountId, (counts.get(r.accountId) ?? 0) + 1);
+    return [...counts.entries()].map(([accountId, count]) => ({ accountId, count }));
+  }, [batch.rows]);
 
   const rowsKey = included.map((r) => `${r.id}:${r.accountId}:${r.isExcluded}`).join('|');
 
@@ -54,26 +60,39 @@ const Review = ({ batch, onClose, onCommitted }: ReviewProps) => {
     });
   }, [balanceAccounts, batch.periodEnd]);
 
-  const edit = (rowId: string, patch: ImportRowPatch) => {
-    setError(null);
-    updateRow.mutateAsync({ rowId, patch }).catch((e) => setError(errorMessage(e)));
-  };
-
-  const assignAll = async (accountId: string) => {
-    if (assigning) return;
+  /**
+   * Moves rows to another account. Sequential (R22): the server recomputes duplicate fingerprints per
+   * account on every PATCH. Afterwards the whole batch is refetched, because sibling rows of either
+   * account can flip to/from duplicate and excluded (R27).
+   */
+  const assignRows = async (rowIds: string[], accountId: string) => {
+    if (assigning || rowIds.length === 0) return;
     setAssigning(true);
     setError(null);
-    // Sequential: the server recomputes duplicate fingerprints per account on every PATCH.
     try {
-      for (const r of batch.rows) {
-        await updateRow.mutateAsync({ rowId: r.id, patch: { accountId } });
+      for (const rowId of rowIds) {
+        await updateRow.mutateAsync({ rowId, patch: { accountId } });
       }
     } catch (e) {
       setError(errorMessage(e));
-      await refetch(); // reflect server state after a partial assignment
     } finally {
+      await refetch({ cancelRefetch: true });
       setAssigning(false);
     }
+  };
+
+  const reassignGroup = (from: string | null, to: string) => {
+    if (!to || to === from) return;
+    assignRows(batch.rows.filter((r) => r.accountId === from).map((r) => r.id), to);
+  };
+
+  const edit = (rowId: string, patch: ImportRowPatch) => {
+    if (patch.accountId) {
+      assignRows([rowId], patch.accountId);
+      return;
+    }
+    setError(null);
+    updateRow.mutateAsync({ rowId, patch }).catch((e) => setError(errorMessage(e)));
   };
 
   const allBalancesEntered = balanceAccounts.every((a) => {
@@ -116,24 +135,35 @@ const Review = ({ batch, onClose, onCommitted }: ReviewProps) => {
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-4 text-sm">
         <span className="text-gray-700">File: <span className="font-medium">{batch.fileName}</span></span>
         <span className="text-gray-700">Detected: <span className="font-medium">{batch.institution}</span></span>
-        {allUnassigned && (
-          <label className="text-gray-700">
+        {accountGroups.map(({ accountId, count }) => (
+          <label key={accountId ?? 'unassigned'} className="text-gray-700" data-testid="account-group">
             Account:{' '}
             <select
-              aria-label="Account for all rows"
-              disabled={assigning}
-              className={selectClass}
-              value=""
-              onChange={(e) => e.target.value && assignAll(e.target.value)}
+              aria-label={
+                accountGroups.length === 1
+                  ? 'Account for all rows'
+                  : `Account for ${count} ${accountId === null ? 'unassigned ' : ''}rows`
+              }
+              disabled={assigning || batch.accounts.length === 0}
+              className={`${selectClass} ${accountId === null ? 'border-amber-400 bg-amber-50' : ''}`}
+              value={accountId ?? ''}
+              onChange={(e) => reassignGroup(accountId, e.target.value)}
             >
-              <option value="">Choose account...</option>
+              {accountId === null && <option value="">Choose account...</option>}
               {batch.accounts.map((a) => <option key={a.accountId} value={a.accountId}>{a.name}</option>)}
             </select>
+            {accountGroups.length > 1 && <span className="text-gray-400"> · {count} rows</span>}
           </label>
-        )}
+        ))}
       </div>
+      {batch.accounts.length === 0 && (
+        <p className="text-sm text-amber-700 mb-4" role="note">
+          No account to import into. Set this institution on one of your accounts first (
+          <Link to="/accounts" className="font-medium text-brand-600 hover:underline">Accounts page</Link>).
+        </p>
+      )}
 
-      <ReviewTable rows={batch.rows} accounts={batch.accounts} onUpdate={edit} />
+      <ReviewTable rows={batch.rows} accounts={batch.accounts} accountsDisabled={assigning} onUpdate={edit} />
 
       {balanceAccounts.length > 0 && (
         <div className="mt-6">

@@ -6,6 +6,8 @@ interface ReviewTableProps {
   rows: ImportRow[];
   accounts: ImportAccount[];
   readOnly?: boolean;
+  /** Disables the per-row account pickers (e.g. while an account assignment is in flight). */
+  accountsDisabled?: boolean;
   onUpdate: (rowId: string, patch: ImportRowPatch) => void;
 }
 
@@ -20,7 +22,7 @@ export const fmtMoney = (n: number) =>
 const fmtDate = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-CA', { month: 'short', day: '2-digit' });
 
-export const ReviewTable = ({ rows, accounts, readOnly, onUpdate }: ReviewTableProps) => (
+export const ReviewTable = ({ rows, accounts, readOnly, accountsDisabled, onUpdate }: ReviewTableProps) => (
   <div className="overflow-x-auto">
     <table className="w-full text-sm">
       <thead>
@@ -46,11 +48,12 @@ export const ReviewTable = ({ rows, accounts, readOnly, onUpdate }: ReviewTableP
               <td className="py-2 pr-3 whitespace-nowrap text-gray-600">{fmtDate(r.date)}</td>
               <td className="py-2 pr-3 text-gray-900">
                 {r.description}
-                {r.accountId === null && !readOnly && (
+                {r.accountId === null && !readOnly && accounts.length > 0 && (
                   <select
                     aria-label={`Account for ${r.description}`}
                     className={`${selectClass} ml-2`}
                     value=""
+                    disabled={accountsDisabled}
                     onChange={(e) => e.target.value && onUpdate(r.id, { accountId: e.target.value })}
                   >
                     <option value="">Choose account...</option>
