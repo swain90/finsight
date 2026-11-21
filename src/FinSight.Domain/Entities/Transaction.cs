@@ -97,6 +97,13 @@ public sealed class Transaction : BaseEntity
         SetUpdatedAt();
     }
 
+    /// <summary>Returns a pending transfer to Regular after matching found no partner; unlike <see cref="MarkNotTransfer"/> it does not dismiss future matching.</summary>
+    public void MarkRegular()
+    {
+        Kind = TransactionKind.Regular;
+        SetUpdatedAt();
+    }
+
     public void MarkNotTransfer()
     {
         Kind = TransactionKind.Regular;

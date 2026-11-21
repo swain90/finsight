@@ -41,6 +41,15 @@ public class TransactionKindTests
     }
 
     [Fact]
+    public void MarkRegular_ClearsPendingWithoutDismissing()
+    {
+        var tx = NewTx();
+        tx.MarkPendingTransfer();
+        tx.MarkRegular();
+        (tx.Kind, tx.IsTransferDismissed).Should().Be((TransactionKind.Regular, false));
+    }
+
+    [Fact]
     public void Unpair_SetsPendingAndClearsGroup()
     {
         var tx = NewTx();

@@ -1,4 +1,5 @@
 using FinSight.Application.Common.Behaviours;
+using FinSight.Application.Features.Imports.Common;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +22,8 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddValidatorsFromAssembly(assembly);
+
+        services.AddScoped<ITransferMatchingService, TransferMatchingService>();
 
         return services;
     }

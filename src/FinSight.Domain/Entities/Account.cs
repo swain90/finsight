@@ -120,7 +120,7 @@ public sealed class Account : BaseEntity
         var snapshot = BalanceSnapshot.Create(Id, asOf, balance, importBatchId);
         if (LatestSnapshotAsOf is null || asOf >= LatestSnapshotAsOf)
         {
-            Balance = balance;
+            Balance = new Money(balance.Amount, balance.Currency);  // never share a Money instance with the snapshot
             LatestSnapshotAsOf = asOf;
             SetUpdatedAt();
         }
@@ -137,7 +137,7 @@ public sealed class Account : BaseEntity
         }
         else
         {
-            Balance = latest.Balance;
+            Balance = new Money(latest.Balance.Amount, latest.Balance.Currency);  // never share a Money instance with the snapshot
             LatestSnapshotAsOf = latest.AsOf;
         }
         SetUpdatedAt();

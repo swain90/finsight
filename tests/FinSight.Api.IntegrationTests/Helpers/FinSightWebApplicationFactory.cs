@@ -2,7 +2,10 @@ using System.Net.Http.Json;
 using FinSight.Application.Common.Interfaces;
 using FinSight.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
+using FinSight.Infrastructure.Imports;
+using FinSight.Infrastructure.Services.Auth;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -58,6 +61,15 @@ public sealed class FinSightWebApplicationFactory : WebApplicationFactory<Progra
             // Replace AI with deterministic test double
             services.RemoveAll<IAiInsightsService>();
             services.AddScoped<IAiInsightsService, NoOpAiInsightsService>();
+        });
+
+        // Test doubles for the statement-import flow, registered after the app's own services.
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<IStatementReader, TestStatementReader>();
+            services.RemoveAll<ICurrentUserService>();
+            services.AddScoped<ICurrentUserService>(sp =>
+                new TestCurrentUserService(ActivatorUtilities.CreateInstance<CurrentUserService>(sp)));
         });
     }
 
