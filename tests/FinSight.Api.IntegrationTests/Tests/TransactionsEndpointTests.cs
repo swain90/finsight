@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 using FinSight.Api.IntegrationTests.Helpers;
 using FinSight.Domain.Enums;
 using FluentAssertions;
@@ -102,5 +104,85 @@ public sealed class TransactionsEndpointTests(FinSightWebApplicationFactory fact
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    private static async Task<Guid> CreateAccountAsync(HttpClient client, string name)
+    {
+        var response = await client.PostAsJsonAsync("/api/v1/accounts", new
+        {
+            Name = name,
+            Type = (int)AccountType.Checking,
+            Currency = "CAD"
+        });
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<Guid>();
+    }
+
+    private static async Task ImportAsync(HttpClient client, Guid accountId, string csv)
+    {
+        using var form = new MultipartFormDataContent();
+        var file = new ByteArrayContent(Encoding.UTF8.GetBytes(csv));
+        file.Headers.ContentType = new("text/csv");
+        form.Add(file, "file", "stmt.csv");
+        form.Add(new StringContent(accountId.ToString()), "accountId");
+        var created = await client.PostAsync("/api/v1/imports", form);
+        created.EnsureSuccessStatusCode();
+        var id = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var commit = await client.PostAsJsonAsync($"/api/v1/imports/{id}/commit", new { balances = new[] { new { accountId, closingBalance = 1000m, asOf = "2026-02-11" } } });
+        commit.EnsureSuccessStatusCode();
+    }
+
+    /// <summary>A 333.33 debit in one account with two equal credits elsewhere: ambiguous, so left pending.</summary>
+    private static async Task<(Guid DebitAccount, Guid CreditAccountA, Guid CreditAccountB)> SeedAmbiguousTransferAsync(HttpClient client)
+    {
+        var from = await CreateAccountAsync(client, "Chequing");
+        var toA = await CreateAccountAsync(client, "Savings A");
+        var toB = await CreateAccountAsync(client, "Savings B");
+        await ImportAsync(client, toA, "Date,Description,Amount\n2026-02-10,Deposit one,333.33\n");
+        await ImportAsync(client, toB, "Date,Description,Amount\n2026-02-11,Deposit two,333.33\n");
+        // Committed last, so it meets both credits at once and cannot be paired uniquely.
+        await ImportAsync(client, from, "Date,Description,Amount\n2026-02-10,Moving money,-333.33\n");
+        return (from, toA, toB);
+    }
+
+    [Fact]
+    public async Task NeedsAttention_ThenResolveWithPartner_PairsAndClearsList()
+    {
+        var client = await factory.CreateAuthenticatedClientAsync();
+        await SeedAmbiguousTransferAsync(client);
+
+        var list = await client.GetFromJsonAsync<JsonElement>("/api/v1/transactions/needs-attention");
+        var items = list.EnumerateArray().ToList();
+        items.Should().HaveCount(3); // each leg is pending while ambiguous
+        var debit = items.Single(i => i.GetProperty("type").GetString() == "Debit");
+        debit.GetProperty("description").GetString().Should().Be("Moving money");
+        debit.GetProperty("candidates").GetArrayLength().Should().Be(2);
+        var partnerId = debit.GetProperty("candidates")[0].GetProperty("transactionId").GetGuid();
+
+        var resolve = await client.PostAsJsonAsync(
+            $"/api/v1/transactions/{debit.GetProperty("transactionId").GetGuid()}/resolve-transfer", new { partnerId });
+        resolve.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var after = await client.GetFromJsonAsync<JsonElement>("/api/v1/transactions/needs-attention");
+        after.EnumerateArray().Select(i => i.GetProperty("transactionId").GetGuid())
+            .Should().NotContain(new[] { debit.GetProperty("transactionId").GetGuid(), partnerId });
+
+        var accountId = debit.GetProperty("accountId").GetGuid();
+        var txs = await client.GetFromJsonAsync<JsonElement>($"/api/v1/transactions/account/{accountId}?page=1&pageSize=10");
+        txs.EnumerateArray().Single().GetProperty("kind").GetString().Should().Be("Transfer");
+    }
+
+    [Fact]
+    public async Task ResolveTransfer_OtherUsersTransaction_Returns404()
+    {
+        var owner = await factory.CreateAuthenticatedClientAsync();
+        var other = await factory.CreateAuthenticatedClientAsync();
+        await SeedAmbiguousTransferAsync(owner);
+        var list = await owner.GetFromJsonAsync<JsonElement>("/api/v1/transactions/needs-attention");
+        var id = list.EnumerateArray().First().GetProperty("transactionId").GetGuid();
+
+        var response = await other.PostAsJsonAsync($"/api/v1/transactions/{id}/resolve-transfer", new { partnerId = (Guid?)null });
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }

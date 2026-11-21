@@ -161,6 +161,42 @@ public sealed class PersistenceSmokeTests(FinSightWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task GetPendingTransfers_ReturnsOnlyOwnUnpairedPendingRows()
+    {
+        var (user, acct) = await SeedUserAndAccountAsync();
+        var (_, otherAcct) = await SeedUserAndAccountAsync();
+        var batch = Guid.NewGuid();
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var a = await db.Accounts.FirstAsync(x => x.Id == acct.Id);
+            var o = await db.Accounts.FirstAsync(x => x.Id == otherAcct.Id);
+            var at = Utc(new DateOnly(2026, 6, 1));
+
+            Transaction Add(Account on, string desc, TransactionKind kind, string fp)
+            {
+                var tx = on.ImportTransaction(desc, new Money(5m, "CAD"), TransactionType.Debit, at,
+                    TransactionCategory.Uncategorized, kind, batch, fp);
+                db.Transactions.Add(tx);
+                return tx;
+            }
+
+            Add(a, "pending", TransactionKind.PendingTransfer, "p1");
+            Add(a, "regular", TransactionKind.Regular, "p2");
+            Add(o, "someone-else", TransactionKind.PendingTransfer, "p3");
+            Add(a, "dismissed", TransactionKind.PendingTransfer, "p4").MarkNotTransfer();
+            await db.SaveChangesAsync();
+        }
+
+        using var scope2 = factory.Services.CreateScope();
+        var repo = scope2.ServiceProvider.GetRequiredService<ITransactionRepository>();
+        var pending = await repo.GetPendingTransfersAsync(user.Id);
+        Assert.Equal(new[] { "pending" }, pending.Select(t => t.Description).ToArray());
+        Assert.All(pending, t => Assert.NotNull(t.Account));
+    }
+
+    [Fact]
     public async Task ImportBatchAndTransferQueries_ReturnExpectedRows()
     {
         var (user, acct) = await SeedUserAndAccountAsync();

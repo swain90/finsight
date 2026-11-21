@@ -78,6 +78,16 @@ public sealed class TransactionRepository(ApplicationDbContext context) : ITrans
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Transaction>> GetPendingTransfersAsync(Guid userId, CancellationToken cancellationToken = default)
+        => await context.Transactions
+            .Include(t => t.Account)
+            .Where(t => t.Account.UserId == userId
+                && t.Kind == TransactionKind.PendingTransfer
+                && t.TransferGroupId == null
+                && !t.IsTransferDismissed)
+            .OrderBy(t => t.OccurredAt)
+            .ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<Transaction>> GetByImportBatchIdAsync(Guid batchId, CancellationToken cancellationToken = default)
         => await context.Transactions.Where(t => t.ImportBatchId == batchId).ToListAsync(cancellationToken);
 

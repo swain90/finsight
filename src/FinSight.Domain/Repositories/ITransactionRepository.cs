@@ -18,6 +18,8 @@ public interface ITransactionRepository
 
     /// <summary>The user's unpaired Regular/PendingTransfer transactions in range (not dismissed), with Account included.</summary>
     Task<IReadOnlyList<Transaction>> GetMatchPoolAsync(Guid userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default);
+    /// <summary>The user's PendingTransfer transactions (unpaired, not dismissed), with Account included.</summary>
+    Task<IReadOnlyList<Transaction>> GetPendingTransfersAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Transaction>> GetByImportBatchIdAsync(Guid batchId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Transaction>> GetByTransferGroupIdsAsync(IReadOnlyCollection<Guid> groupIds, CancellationToken cancellationToken = default);
     void Remove(Transaction transaction);

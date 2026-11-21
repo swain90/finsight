@@ -23,14 +23,7 @@ public sealed class TransferMatchingService(ITransactionRepository transactionRe
 
         // Rows the user said are not transfers are never offered to the matcher.
         var byId = pool.Where(t => !t.IsTransferDismissed).ToDictionary(t => t.Id);
-        var candidates = byId.Values.Select(t => new MatchCandidate(
-            t.Id,
-            t.AccountId,
-            t.Account.Owner,
-            DateOnly.FromDateTime(t.OccurredAt.UtcDateTime),
-            t.Amount.Amount,
-            t.Type,
-            TransferMatcher.HasHint(DescriptionNormalizer.Normalize(t.Description)))).ToList();
+        var candidates = byId.Values.Select(MatchCandidates.From).ToList();
 
         var groups = new Dictionary<Guid, Guid>();
         foreach (var decision in TransferMatcher.Match(candidates))

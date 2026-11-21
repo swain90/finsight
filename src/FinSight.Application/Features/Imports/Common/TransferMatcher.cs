@@ -73,6 +73,25 @@ public static class TransferMatcher
         return ordered.Select(c => Decide(c, partners, candidates)).ToList();
     }
 
+    /// <summary>
+    /// The kind and category <paramref name="self"/> takes once paired with <paramref name="partner"/>:
+    /// a Corporation debit paired with a Personal credit is OwnerPay (the credit leg is categorized
+    /// PayFromCorporation); every other pair is a plain Transfer.
+    /// </summary>
+    public static (TransactionKind Kind, TransactionCategory? Category) DecidePair(MatchCandidate self, MatchCandidate partner)
+    {
+        var debit = self.Type == TransactionType.Debit ? self : partner;
+        var credit = self.Type == TransactionType.Credit ? self : partner;
+        var ownerPay = debit.Owner == AccountOwner.Corporation && credit.Owner == AccountOwner.Personal;
+        if (!ownerPay)
+        {
+            return (TransactionKind.Transfer, null);
+        }
+
+        var category = self.Type == TransactionType.Credit ? TransactionCategory.PayFromCorporation : (TransactionCategory?)null;
+        return (TransactionKind.OwnerPay, category);
+    }
+
     private static MatchCandidate? FindPartner(
         MatchCandidate a,
         Dictionary<Guid, IReadOnlyList<MatchCandidate>> candidates,
@@ -135,16 +154,8 @@ public static class TransferMatcher
     {
         if (partners.TryGetValue(c.TransactionId, out var p))
         {
-            var debit = c.Type == TransactionType.Debit ? c : p;
-            var credit = c.Type == TransactionType.Credit ? c : p;
-            var ownerPay = debit.Owner == AccountOwner.Corporation && credit.Owner == AccountOwner.Personal;
-            if (ownerPay)
-            {
-                var category = c.Type == TransactionType.Credit ? TransactionCategory.PayFromCorporation : (TransactionCategory?)null;
-                return new MatchDecision(c.TransactionId, p.TransactionId, TransactionKind.OwnerPay, category);
-            }
-
-            return new MatchDecision(c.TransactionId, p.TransactionId, TransactionKind.Transfer, null);
+            var (kind, category) = DecidePair(c, p);
+            return new MatchDecision(c.TransactionId, p.TransactionId, kind, category);
         }
 
         var pending = candidates[c.TransactionId].Count > 0 || c.HasTransferHint;

@@ -1,5 +1,7 @@
 using FinSight.Api.Extensions;
 using FinSight.Application.Features.Transactions.Commands.RecordTransaction;
+using FinSight.Application.Features.Transactions.Commands.ResolveTransfer;
+using FinSight.Application.Features.Transactions.Queries.GetNeedsAttention;
 using FinSight.Application.Common.Interfaces;
 using FinSight.Domain.Enums;
 using FinSight.Domain.Repositories;
@@ -87,6 +89,27 @@ public class TransactionsController(
             : this.ToProblemResult(result.Error);
     }
 
+    /// <summary>Unmatched transfer-looking transactions with their possible partners</summary>
+    [HttpGet("needs-attention")]
+    [ProducesResponseType(typeof(IReadOnlyList<NeedsAttentionItemDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetNeedsAttention(CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetNeedsAttentionQuery(), ct);
+        return result.IsSuccess ? Ok(result.Value) : this.ToProblemResult(result.Error);
+    }
+
+    /// <summary>Pair a pending transfer with a partner, or mark it as not a transfer (null partner)</summary>
+    [HttpPost("{id:guid}/resolve-transfer")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResolveTransfer(Guid id, [FromBody] ResolveTransferRequest request, CancellationToken ct)
+    {
+        var result = await mediator.Send(new ResolveTransferCommand(id, request.PartnerId), ct);
+        return result.IsSuccess ? NoContent() : this.ToProblemResult(result.Error);
+    }
+
     private static TransactionDto MapToDto(FinSight.Domain.Entities.Transaction t)
         => new(
             t.Id,
@@ -97,7 +120,8 @@ public class TransactionsController(
             NormalizeLegacyCategory(t.Category).ToString(),
             t.MerchantName,
             t.OccurredAt,
-            t.IsAnomaly);
+            t.IsAnomaly,
+            t.Kind.ToString());
 
     private static TransactionCategory NormalizeLegacyCategory(TransactionCategory category) => category switch
     {
@@ -125,5 +149,8 @@ public sealed record TransactionDto(
     string Category,
     string? MerchantName,
     DateTimeOffset OccurredAt,
-    bool IsAnomaly
+    bool IsAnomaly,
+    string Kind
 );
+
+public sealed record ResolveTransferRequest(Guid? PartnerId);
