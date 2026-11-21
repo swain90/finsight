@@ -131,7 +131,7 @@ public sealed class ReportQueriesTests : HandlerTestBase
         var active = Acct(_userId, AccountType.Savings, AccountOwner.Personal);
         var closed = Acct(_userId, AccountType.Tfsa, AccountOwner.Personal);
         active.UpdateBalance(new(5000m, "CAD"));
-        closed.UpdateBalance(new(0m, "CAD"));
+        closed.UpdateBalance(new(20000m, "CAD"));
         closed.Deactivate();
         _accounts.GetByUserIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(new List<Account> { active, closed });
         BalanceSnapshot Snap(Account a, DateOnly d, decimal v) => BalanceSnapshot.Create(a.Id, d, new(v, "CAD"), null);
@@ -150,7 +150,8 @@ public sealed class ReportQueriesTests : HandlerTestBase
         var result = await sut.Handle(new GetNetWorthQuery(5), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Personal.Should().Be(5000m);
+        result.Value.Personal.Should().Be(25000m);
+        result.Value.IncludingCorporation.Should().Be(25000m);
         // Apr 30 has no snapshots anywhere: skipped. Window ends at Aug 31 (current month end).
         result.Value.History.Select(p => (p.MonthEnd, p.Personal)).Should().Equal(
             (new DateOnly(2026, 5, 31), 24000m),
