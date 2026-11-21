@@ -70,6 +70,33 @@ public sealed class GetBudgetSummaryQueryHandlerTests : HandlerTestBase
     }
 
     [Fact]
+    public async Task BudgetSummary_RefundReducesCategorySpent()
+    {
+        var userId = Guid.NewGuid();
+        _currentUser.IsAuthenticated.Returns(true);
+        _currentUser.UserId.Returns(userId);
+        _budgets.GetByUserIdAsync(userId, 6, 2025, Arg.Any<CancellationToken>())
+            .Returns(new List<Budget>
+            {
+                Budget.Create(userId, TransactionCategory.Entertainment, new Money(200m, "CAD"), 6, 2025)
+            }.AsReadOnly());
+
+        var account = CreateAccount(userId);
+        var june = new DateTimeOffset(2025, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        var transactions = new List<Transaction>
+        {
+            account.RecordTransaction("Concert", CAD(100m), TransactionType.Debit, june, TransactionCategory.Entertainment),
+            account.RecordTransaction("Concert refund", CAD(30m), TransactionType.Credit, june, TransactionCategory.Entertainment),
+        };
+        _transactions.GetByUserIdAsync(userId, Arg.Any<DateTimeOffset>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(transactions.AsReadOnly());
+
+        var result = await CreateSut().Handle(new GetBudgetSummaryQuery(6, 2025), CancellationToken.None);
+
+        result.Value.TotalSpent.Should().Be(70m);
+    }
+
+    [Fact]
     public async Task Handle_NoBudgets_ShouldReturnEmptySummary()
     {
         // Arrange

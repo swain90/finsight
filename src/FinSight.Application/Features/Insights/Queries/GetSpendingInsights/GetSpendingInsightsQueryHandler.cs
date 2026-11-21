@@ -1,4 +1,5 @@
 using FinSight.Application.Common.Interfaces;
+using FinSight.Application.Common.Reporting;
 using FinSight.Domain.Common;
 using FinSight.Domain.Enums;
 using FinSight.Domain.Repositories;
@@ -23,21 +24,20 @@ public sealed class GetSpendingInsightsQueryHandler(
         var transactions = await transactionRepository.GetByUserIdAsync(
             currentUserService.UserId.Value, from, to, cancellationToken);
 
-        var debits = transactions.Where(t => t.Type == TransactionType.Debit).ToList();
-        var credits = transactions.Where(t => t.Type == TransactionType.Credit).ToList();
+        var spending = transactions.Where(PersonalLedger.IsPersonalSpending).ToList();
 
-        var totalSpent = debits.Sum(t => t.Amount.Amount);
-        var totalIncome = credits.Sum(t => t.Amount.Amount);
+        var totalSpent = spending.Sum(PersonalLedger.SpendingAmount);
+        var totalIncome = transactions.Where(PersonalLedger.IsTaxableIncome).Sum(t => t.Amount.Amount);
         var currency = transactions.FirstOrDefault()?.Amount.Currency ?? Money.DefaultCurrency;
 
         // Category breakdown
-        var breakdown = debits
+        var breakdown = spending
             .GroupBy(t => t.Category)
             .Select(g => new CategoryBreakdownDto(
                 g.Key.ToString(),
-                g.Sum(t => t.Amount.Amount),
+                g.Sum(PersonalLedger.SpendingAmount),
                 g.Count(),
-                totalSpent > 0 ? Math.Round(g.Sum(t => t.Amount.Amount) / totalSpent * 100, 1) : 0
+                totalSpent > 0 ? Math.Round(g.Sum(PersonalLedger.SpendingAmount) / totalSpent * 100, 1) : 0
             ))
             .OrderByDescending(c => c.Amount)
             .ToList()

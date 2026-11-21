@@ -1,4 +1,5 @@
 using FinSight.Application.Common.Interfaces;
+using FinSight.Application.Common.Reporting;
 using FinSight.Domain.Common;
 using FinSight.Domain.Enums;
 using FinSight.Domain.Repositories;
@@ -28,9 +29,9 @@ public sealed class GetBudgetsQueryHandler(
             cancellationToken);
 
         var spentByCategoryAndCurrency = transactions
-            .Where(t => t.Type == TransactionType.Debit)
+            .Where(PersonalLedger.IsPersonalSpending)
             .GroupBy(t => (Category: NormalizeLegacyCategory(t.Category), Currency: t.Amount.Currency))
-            .ToDictionary(g => g.Key, g => g.Sum(t => t.Amount.Amount));
+            .ToDictionary(g => g.Key, g => g.Sum(PersonalLedger.SpendingAmount));
 
         var dtos = budgets
             .Select(b =>
