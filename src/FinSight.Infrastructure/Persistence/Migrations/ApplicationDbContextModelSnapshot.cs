@@ -31,6 +31,17 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ExternalAccountRef")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Institution")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("Other");
+
                     b.Property<string>("InstitutionName")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -41,10 +52,20 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastSyncedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateOnly?>("LatestSnapshotAsOf")
+                        .HasColumnType("date");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Owner")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("Personal");
 
                     b.Property<string>("PlaidAccountId")
                         .HasMaxLength(100)
@@ -68,6 +89,36 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Accounts");
+                });
+
+            modelBuilder.Entity("FinSight.Domain.Entities.BalanceSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("AsOf")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ImportBatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportBatchId");
+
+                    b.HasIndex("AccountId", "AsOf");
+
+                    b.ToTable("BalanceSnapshots");
                 });
 
             modelBuilder.Entity("FinSight.Domain.Entities.Budget", b =>
@@ -100,6 +151,162 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Budgets");
+                });
+
+            modelBuilder.Entity("FinSight.Domain.Entities.ImportBatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CommittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Institution")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateOnly?>("PeriodEnd")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("PeriodStart")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ReconciliationWarning")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("ImportBatches");
+                });
+
+            modelBuilder.Entity("FinSight.Domain.Entities.ImportRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("CategoryChangedByUser")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Fingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("ImportBatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDuplicate")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsExcluded")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("KindHint")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("MerchantName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly>("OccurredOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("RawLine")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportBatchId");
+
+                    b.ToTable("ImportRows");
+                });
+
+            modelBuilder.Entity("FinSight.Domain.Entities.MerchantRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DescriptionKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "DescriptionKey")
+                        .IsUnique();
+
+                    b.ToTable("MerchantRules");
                 });
 
             modelBuilder.Entity("FinSight.Domain.Entities.RefreshToken", b =>
@@ -170,8 +377,25 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<Guid?>("ImportBatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ImportFingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<bool>("IsAnomaly")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("IsTransferDismissed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("Regular");
 
                     b.Property<string>("MerchantName")
                         .HasMaxLength(200)
@@ -188,6 +412,9 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<Guid?>("TransferGroupId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("Type")
                         .HasColumnType("integer");
 
@@ -196,11 +423,21 @@ namespace FinSight.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ImportBatchId");
+
+                    b.HasIndex("Kind");
+
                     b.HasIndex("PlaidTransactionId")
                         .IsUnique()
                         .HasFilter("\"PlaidTransactionId\" IS NOT NULL");
 
+                    b.HasIndex("TransferGroupId");
+
                     b.HasIndex("AccountId", "Category");
+
+                    b.HasIndex("AccountId", "ImportFingerprint")
+                        .IsUnique()
+                        .HasFilter("\"ImportFingerprint\" IS NOT NULL");
 
                     b.HasIndex("AccountId", "OccurredAt");
 
@@ -212,6 +449,16 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<int>("CorporateFiscalYearEndDay")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(31);
+
+                    b.Property<int>("CorporateFiscalYearEndMonth")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(12);
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -291,6 +538,42 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("FinSight.Domain.Entities.BalanceSnapshot", b =>
+                {
+                    b.HasOne("FinSight.Domain.Entities.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsOne("FinSight.Domain.ValueObjects.Money", "Balance", b1 =>
+                        {
+                            b1.Property<Guid>("BalanceSnapshotId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("Balance");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .HasColumnType("character varying(3)")
+                                .HasColumnName("Currency");
+
+                            b1.HasKey("BalanceSnapshotId");
+
+                            b1.ToTable("BalanceSnapshots");
+
+                            b1.WithOwner()
+                                .HasForeignKey("BalanceSnapshotId");
+                        });
+
+                    b.Navigation("Balance")
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("FinSight.Domain.Entities.Budget", b =>
                 {
                     b.OwnsOne("FinSight.Domain.ValueObjects.Money", "Limit", b1 =>
@@ -348,6 +631,42 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("FinSight.Domain.Entities.ImportRow", b =>
+                {
+                    b.HasOne("FinSight.Domain.Entities.ImportBatch", null)
+                        .WithMany("Rows")
+                        .HasForeignKey("ImportBatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsOne("FinSight.Domain.ValueObjects.Money", "Amount", b1 =>
+                        {
+                            b1.Property<Guid>("ImportRowId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("Amount");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .HasColumnType("character varying(3)")
+                                .HasColumnName("Currency");
+
+                            b1.HasKey("ImportRowId");
+
+                            b1.ToTable("ImportRows");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ImportRowId");
+                        });
+
+                    b.Navigation("Amount")
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("FinSight.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("FinSight.Domain.Entities.User", "User")
@@ -400,6 +719,11 @@ namespace FinSight.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FinSight.Domain.Entities.Account", b =>
                 {
                     b.Navigation("Transactions");
+                });
+
+            modelBuilder.Entity("FinSight.Domain.Entities.ImportBatch", b =>
+                {
+                    b.Navigation("Rows");
                 });
 
             modelBuilder.Entity("FinSight.Domain.Entities.User", b =>

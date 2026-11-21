@@ -41,6 +41,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<ITransactionRepository, TransactionRepository>();
         services.AddScoped<IBudgetRepository, BudgetRepository>();
+        services.AddScoped<IImportBatchRepository, ImportBatchRepository>();
+        services.AddScoped<IMerchantRuleRepository, MerchantRuleRepository>();
+        services.AddScoped<IBalanceSnapshotRepository, BalanceSnapshotRepository>();
 
         // ─── Auth Services ─────────────────────────────────────────────────
         services.AddHttpContextAccessor();

@@ -13,6 +13,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.PasswordHash).IsRequired().HasMaxLength(256);
         builder.Property(u => u.FirstName).IsRequired().HasMaxLength(100);
         builder.Property(u => u.LastName).IsRequired().HasMaxLength(100);
+        builder.Property(u => u.CorporateFiscalYearEndMonth).HasDefaultValue(12);
+        builder.Property(u => u.CorporateFiscalYearEndDay).HasDefaultValue(31);
         builder.HasIndex(u => u.Email).IsUnique();
 
         builder.HasMany(u => u.Accounts)

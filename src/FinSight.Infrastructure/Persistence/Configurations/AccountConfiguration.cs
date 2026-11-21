@@ -1,4 +1,5 @@
 using FinSight.Domain.Entities;
+using FinSight.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -19,6 +20,10 @@ public class AccountConfiguration : IEntityTypeConfiguration<Account>
             money.Property(m => m.Amount).HasColumnName("Balance").HasPrecision(18, 2);
             money.Property(m => m.Currency).HasColumnName("Currency").HasMaxLength(3);
         });
+
+        builder.Property(a => a.Owner).HasConversion<string>().HasMaxLength(30).HasDefaultValue(AccountOwner.Personal);
+        builder.Property(a => a.Institution).HasConversion<string>().HasMaxLength(30).HasDefaultValue(Institution.Other);
+        builder.Property(a => a.ExternalAccountRef).HasMaxLength(50);
 
         builder.HasMany(a => a.Transactions)
             .WithOne(t => t.Account)

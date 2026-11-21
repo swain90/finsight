@@ -28,6 +28,7 @@ public sealed class TransactionRepository(ApplicationDbContext context) : ITrans
 
     public async Task<IReadOnlyList<Transaction>> GetByUserIdAsync(Guid userId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
         => await context.Transactions
+            .Include(t => t.Account)
             .Where(t => t.Account.UserId == userId && t.OccurredAt >= from && t.OccurredAt <= to)
             .OrderByDescending(t => t.OccurredAt)
             .ToListAsync(cancellationToken);
