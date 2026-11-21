@@ -1,3 +1,4 @@
+using System.Globalization;
 using FinSight.Application.Common.Interfaces;
 using FinSight.Application.Features.Imports.Common;
 using FinSight.Domain.Common;
@@ -57,6 +58,24 @@ public sealed class CommitImportCommandHandler(
         if (request.Balances.Any(b => !accountsById.ContainsKey(b.AccountId)))
             return Result.Failure<ImportBatchDto>(Error.NotFound);
 
+        // Statements uploaded before either was committed are not flagged as duplicates of each other.
+        // Re-check against what is stored now, so the unique fingerprint index never surfaces as a 500.
+        var collisions = new List<ImportRow>();
+        foreach (var group in includedByAccount)
+        {
+            var existing = await transactionRepository.GetExistingFingerprintsAsync(
+                group.Key, group.Select(r => r.Fingerprint!).ToList(), cancellationToken);
+            collisions.AddRange(group.Where(r => existing.Contains(r.Fingerprint!)));
+        }
+
+        if (collisions.Count > 0)
+        {
+            foreach (var row in collisions)
+                row.AssignAccount(row.AccountId!.Value, row.Fingerprint!, isDuplicate: true);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return AlreadyImported(collisions.Count);
+        }
+
         // Reconcile against the latest snapshot as it is BEFORE this import's snapshots are recorded.
         var warnings = new List<string>();
         foreach (var input in request.Balances)
@@ -68,7 +87,7 @@ public sealed class CommitImportCommandHandler(
                 .Select(r => (r.Amount.Amount, r.Type));
             var check = ReconciliationCalculator.Check(account.Type, previous?.Balance.Amount, rows, input.ClosingBalance);
             if (!check.Skipped && !check.IsBalanced)
-                warnings.Add($"{account.Name}: off by {check.Difference:C}");
+                warnings.Add(string.Create(CultureInfo.GetCultureInfo("en-CA"), $"{account.Name}: off by {check.Difference:C}"));
         }
 
         var transactions = new List<Transaction>(included.Count);
@@ -131,7 +150,15 @@ public sealed class CommitImportCommandHandler(
             await snapshotRepository.AddAsync(snapshot, cancellationToken);
         foreach (var rule in newRules)
             await merchantRuleRepository.AddAsync(rule, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (UniqueViolationException)
+        {
+            // Lost a race with another commit of the same rows.
+            return AlreadyImported(null);
+        }
 
         if (batch.PeriodStart is { } from && batch.PeriodEnd is { } to)
         {
@@ -141,4 +168,9 @@ public sealed class CommitImportCommandHandler(
 
         return Result.Success(await ImportDtoLoader.BuildAsync(batch, userAccounts, snapshotRepository, cancellationToken));
     }
+
+    private static Result<ImportBatchDto> AlreadyImported(int? count) =>
+        Result.Failure<ImportBatchDto>(Error.Custom("Import.AlreadyImported", count is { } n
+            ? $"{n} row(s) in this import were already imported. They are now marked as duplicates \u2014 review and commit again."
+            : "Some rows in this import were already imported. Review and commit again."));
 }

@@ -17,8 +17,11 @@ namespace FinSight.Api.IntegrationTests.Features.Imports;
 
 /// <summary>Drives the import flow through MediatR against a real PostgreSQL database.</summary>
 [Collection("Integration")]
-public sealed class ImportFlowTests(FinSightWebApplicationFactory factory) : IClassFixture<FinSightWebApplicationFactory>
+public sealed class ImportFlowTests(FinSightWebApplicationFactory factory) : IClassFixture<FinSightWebApplicationFactory>, IDisposable
 {
+    /// <summary>The acting-user override is static; clear it so it cannot leak into later tests.</summary>
+    public void Dispose() => TestCurrentUserService.Override = null;
+
     private static readonly DateOnly AsOf = new(2026, 1, 31);
 
     private async Task<Guid> NewUserAsync()
@@ -152,5 +155,29 @@ public sealed class ImportFlowTests(FinSightWebApplicationFactory factory) : ICl
         savingsAccount.Balance.Amount.Should().Be(900m);
         (await db.ImportBatches.AsNoTracking().SingleAsync(b => b.Id == cardBatch.Id)).Status
             .Should().Be(ImportBatchStatus.Discarded);
+    }
+
+    [Fact]
+    public async Task Commit_TwoPendingBatchesOfSameFile_SecondFailsWithAlreadyImported()
+    {
+        var userId = await NewUserAsync();
+        var account = await NewAccountAsync(userId, "Chequing", AccountType.Checking);
+        string[] lines = ["2026-01-05,COFFEE SHOP,-4.50", "2026-01-06,PAYROLL,2000.00"];
+        var first = await UploadAsync(account, lines);
+        var second = await UploadAsync(account, lines);
+        second.Rows.Should().OnlyContain(r => !r.IsDuplicate);
+        await CommitAsync(first.Id, new ClosingBalanceInput(account, 1995.50m, AsOf));
+
+        var failed = await SendAsync(new CommitImportCommand(second.Id, [new ClosingBalanceInput(account, 1995.50m, AsOf)]));
+
+        failed.IsFailure.Should().BeTrue();
+        failed.Error.Code.Should().Be("Import.AlreadyImported");
+        (await TransactionsAsync(userId)).Should().HaveCount(2);
+        var reloaded = await SendAsync(new FinSight.Application.Features.Imports.Queries.GetImport.GetImportQuery(second.Id));
+        reloaded.Value.Status.Should().Be("PendingReview");
+        reloaded.Value.Rows.Should().OnlyContain(r => r.IsDuplicate && r.IsExcluded);
+
+        await CommitAsync(second.Id);
+        (await TransactionsAsync(userId)).Should().HaveCount(2);
     }
 }

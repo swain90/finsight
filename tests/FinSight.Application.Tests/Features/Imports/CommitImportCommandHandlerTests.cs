@@ -147,8 +147,7 @@ public class CommitImportCommandHandlerTests
         await _handler.Handle(
             new CommitImportCommand(b.Id, [new ClosingBalanceInput(acct.Id, 80m, new DateOnly(2026, 1, 31))]), default);
 
-        b.ReconciliationWarning.Should().StartWith("Daily: off by ");
-        b.ReconciliationWarning.Should().Contain("10");
+        b.ReconciliationWarning.Should().Be("Daily: off by -$10.00");
     }
 
     [Fact]
@@ -205,6 +204,42 @@ public class CommitImportCommandHandlerTests
 
         await _matching.Received(1).RunAsync(_userId, new DateOnly(2026, 1, 3), new DateOnly(2026, 1, 20), Arg.Any<CancellationToken>());
         await _uow.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Commit_FingerprintAlreadyStored_MarksDuplicateAndFails()
+    {
+        var acct = Acct();
+        var row = Row(2, "COFFEE");
+        row.AssignAccount(acct.Id, "fp1", false);
+        var b = Batch([acct], row);
+        _transactions.GetExistingFingerprintsAsync(acct.Id, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new HashSet<string> { "fp1" });
+
+        var result = await _handler.Handle(
+            new CommitImportCommand(b.Id, [new ClosingBalanceInput(acct.Id, 5m, new DateOnly(2026, 1, 31))]), default);
+
+        result.Error.Code.Should().Be("Import.AlreadyImported");
+        result.Error.Description.Should().StartWith("1 row(s) in this import were already imported.");
+        (row.IsDuplicate, row.IsExcluded).Should().Be((true, true));
+        b.Status.Should().Be(ImportBatchStatus.PendingReview);
+        await _transactions.DidNotReceive().AddRangeAsync(Arg.Any<IEnumerable<Transaction>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Commit_UniqueViolationOnSave_FailsWithAlreadyImported()
+    {
+        var acct = Acct();
+        var row = Row(2, "COFFEE");
+        row.AssignAccount(acct.Id, "fp1", false);
+        var b = Batch([acct], row);
+        _uow.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns<Task<int>>(_ => throw new FinSight.Domain.Exceptions.UniqueViolationException("x", new Exception()));
+
+        var result = await _handler.Handle(
+            new CommitImportCommand(b.Id, [new ClosingBalanceInput(acct.Id, 5m, new DateOnly(2026, 1, 31))]), default);
+
+        result.Error.Code.Should().Be("Import.AlreadyImported");
     }
 
     [Fact]
