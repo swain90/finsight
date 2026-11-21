@@ -42,6 +42,12 @@ public sealed class StatementParser(IEnumerable<IStatementReader> readers) : ISt
         try
         {
             parsed = reader.Read(rows).ToList();
+
+            // Readers normalize to positive amounts with a direction; anything else is a reader bug that
+            // would silently flip or zero a row, so it fails the upload like any other format error.
+            var nonPositive = parsed.FirstOrDefault(r => r.Amount <= 0);
+            if (nonPositive is not null)
+                throw new StatementFormatException(nonPositive.LineNumber, "Amount must be positive.");
         }
         catch (StatementFormatException ex)
         {

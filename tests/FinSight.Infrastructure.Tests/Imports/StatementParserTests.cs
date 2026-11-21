@@ -42,6 +42,19 @@ public class StatementParserTests
         row.LineNumber.Should().Be(2);
     }
 
+    [Theory]
+    [InlineData("0.00", false)]
+    [InlineData("-12.00", true)]
+    public void Parse_ReaderEmitsNonPositiveAmount_FailsWithFormatError(string amount, bool passAmountThrough)
+    {
+        var result = Parser(new FakeReader(passAmountThrough: passAmountThrough)).Parse(Csv(
+            $"Date,Description,Amount\n2026-10-03,REFUND,4.50\n2026-10-04,ODD,{amount}\n"));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Import.Format");
+        result.Error.Description.Should().Be("Row 3: Amount must be positive.");
+    }
+
     [Fact]
     public void Parse_HeaderOnly_Fails()
     {

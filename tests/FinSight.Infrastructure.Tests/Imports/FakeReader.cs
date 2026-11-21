@@ -6,8 +6,13 @@ using FinSight.Infrastructure.Imports;
 
 namespace FinSight.Infrastructure.Tests.Imports;
 
-/// <summary>Test-only reader for files shaped "Date,Description,Amount[,Currency]" (signed amount, ISO dates).</summary>
-internal sealed class FakeReader(bool canRead = true, Institution institution = Institution.Cibc) : IStatementReader
+/// <summary>
+/// Test-only reader for files shaped "Date,Description,Amount[,Currency]" (signed amount, ISO dates).
+/// With <paramref name="passAmountThrough"/>, the parsed amount is emitted unchanged (as a Debit), to simulate a
+/// faulty reader that breaks the "amounts are always positive" contract.
+/// </summary>
+internal sealed class FakeReader(
+    bool canRead = true, Institution institution = Institution.Cibc, bool passAmountThrough = false) : IStatementReader
 {
     public Institution Institution => institution;
 
@@ -23,7 +28,8 @@ internal sealed class FakeReader(bool canRead = true, Institution institution = 
             var currency = row.Fields.Count > 3 ? row.Fields[3] : "CAD";
             yield return new ParsedStatementRow(
                 row.LineNumber, DateOnly.Parse(row.Fields[0], CultureInfo.InvariantCulture), row.Fields[1], null,
-                Math.Abs(amount), amount < 0 ? TransactionType.Debit : TransactionType.Credit, currency, null,
+                passAmountThrough ? amount : Math.Abs(amount),
+                passAmountThrough || amount < 0 ? TransactionType.Debit : TransactionType.Credit, currency, null,
                 TransactionKind.Regular, null, row.RawLine);
         }
     }
