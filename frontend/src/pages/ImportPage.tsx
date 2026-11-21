@@ -55,15 +55,19 @@ const Review = ({ batch, onClose, onCommitted }: ReviewProps) => {
 
   const edit = (rowId: string, patch: ImportRowPatch) => {
     setError(null);
-    updateRow.mutate({ rowId, patch }, { onError: (e) => setError(errorMessage(e)) });
+    updateRow.mutateAsync({ rowId, patch }).catch((e) => setError(errorMessage(e)));
   };
 
   const assignAll = async (accountId: string) => {
     setError(null);
+    // Sequential: the server recomputes duplicate fingerprints per account on every PATCH.
     try {
-      await Promise.all(batch.rows.map((r) => updateRow.mutateAsync({ rowId: r.id, patch: { accountId } })));
+      for (const r of batch.rows) {
+        await updateRow.mutateAsync({ rowId: r.id, patch: { accountId } });
+      }
     } catch (e) {
       setError(errorMessage(e));
+      await refetch(); // reflect server state after a partial assignment
     }
   };
 
