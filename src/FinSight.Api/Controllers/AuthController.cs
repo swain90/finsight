@@ -1,3 +1,4 @@
+using FinSight.Api.Extensions;
 using FinSight.Application.Features.Auth.Commands.Login;
 using FinSight.Application.Features.Auth.Commands.RefreshToken;
 using FinSight.Application.Features.Auth.Commands.Register;
@@ -25,7 +26,7 @@ public class AuthController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(command, ct);
 
         if (result.IsFailure)
-            return Problem(result.Error.Description, statusCode: StatusCodes.Status409Conflict, title: result.Error.Code);
+            return this.ToProblemResult(result.Error);
 
         SetRefreshTokenCookie(result.Value.RefreshToken);
         return CreatedAtAction(nameof(Register), new AuthResponse(

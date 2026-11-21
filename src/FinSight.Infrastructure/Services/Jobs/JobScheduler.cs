@@ -9,10 +9,12 @@ namespace FinSight.Infrastructure.Services.Jobs;
 /// </summary>
 public static class JobScheduler
 {
-    public static void RegisterRecurringJobs(ILogger logger)
+    public static void RegisterRecurringJobs(IRecurringJobManager recurringJobs, ILogger logger)
     {
         // Plaid sync: every hour
-        RecurringJob.AddOrUpdate<PlaidSyncJob>(
+        // Use the DI-resolved manager: the static RecurringJob API requires JobStorage.Current,
+        // which is only initialised once Hangfire's services have been resolved.
+        recurringJobs.AddOrUpdate<PlaidSyncJob>(
             recurringJobId: "plaid-sync-all-users",
             methodCall: job => job.SyncAllUsersAsync(CancellationToken.None),
             cronExpression: Cron.Hourly(),

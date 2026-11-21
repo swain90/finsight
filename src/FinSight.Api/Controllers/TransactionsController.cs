@@ -1,3 +1,4 @@
+using FinSight.Api.Extensions;
 using FinSight.Application.Features.Transactions.Commands.RecordTransaction;
 using FinSight.Application.Common.Interfaces;
 using FinSight.Domain.Enums;
@@ -83,7 +84,7 @@ public class TransactionsController(
         var result = await mediator.Send(command, ct);
         return result.IsSuccess
             ? CreatedAtAction(nameof(GetTransactions), new { accountId = command.AccountId }, result.Value)
-            : BadRequest(new ProblemDetails { Title = result.Error.Code, Detail = result.Error.Description });
+            : this.ToProblemResult(result.Error);
     }
 
     private static TransactionDto MapToDto(FinSight.Domain.Entities.Transaction t)

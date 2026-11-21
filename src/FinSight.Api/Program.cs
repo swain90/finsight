@@ -63,7 +63,7 @@ try
     {
         options.AddFixedWindowLimiter("auth", o =>
         {
-            o.PermitLimit = 5;
+            o.PermitLimit = builder.Configuration.GetValue("RateLimiting:AuthPermitLimit", 5);
             o.Window = TimeSpan.FromMinutes(1);
             o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             o.QueueLimit = 0;
@@ -142,7 +142,9 @@ try
     app.MapHealthChecks("/health/ready");
 
     // Register recurring Hangfire jobs
-    JobScheduler.RegisterRecurringJobs(app.Services.GetRequiredService<ILogger<Program>>());
+    JobScheduler.RegisterRecurringJobs(
+        app.Services.GetRequiredService<IRecurringJobManager>(),
+        app.Services.GetRequiredService<ILogger<Program>>());
 
     Log.Information("FinSight API starting...");
     app.Run();

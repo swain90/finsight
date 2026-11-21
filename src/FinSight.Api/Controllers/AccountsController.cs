@@ -1,3 +1,4 @@
+using FinSight.Api.Extensions;
 using FinSight.Application.Features.Accounts.Commands.CreateAccount;
 using FinSight.Application.Features.Accounts.Queries.GetAccounts;
 using FinSight.Domain.ValueObjects;
@@ -32,7 +33,7 @@ public class AccountsController(IMediator mediator) : ControllerBase
 
         return result.IsSuccess
             ? CreatedAtAction(nameof(GetAccounts), new { id = result.Value }, result.Value)
-            : BadRequest(new ProblemDetails { Title = result.Error.Code, Detail = result.Error.Description });
+            : this.ToProblemResult(result.Error);
     }
 }
 
