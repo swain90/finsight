@@ -3,7 +3,6 @@ using FinSight.Application.Features.Transactions.Commands.RecordTransaction;
 using FinSight.Application.Features.Transactions.Commands.ResolveTransfer;
 using FinSight.Application.Features.Transactions.Queries.GetNeedsAttention;
 using FinSight.Application.Common.Interfaces;
-using FinSight.Domain.Enums;
 using FinSight.Domain.Repositories;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -117,27 +116,11 @@ public class TransactionsController(
             t.Amount.Amount,
             t.Amount.Currency,
             t.Type.ToString(),
-            NormalizeLegacyCategory(t.Category).ToString(),
+            t.Category.ToString(),
             t.MerchantName,
             t.OccurredAt,
             t.IsAnomaly,
             t.Kind.ToString());
-
-    private static TransactionCategory NormalizeLegacyCategory(TransactionCategory category) => category switch
-    {
-        (TransactionCategory)1 => TransactionCategory.GroceriesAndFood,
-        (TransactionCategory)2 => TransactionCategory.Transportation,
-        (TransactionCategory)3 => TransactionCategory.HousingAndRent,
-        (TransactionCategory)4 => TransactionCategory.Utilities,
-        (TransactionCategory)5 => TransactionCategory.HealthAndMedical,
-        (TransactionCategory)6 => TransactionCategory.Entertainment,
-        (TransactionCategory)7 => TransactionCategory.ShoppingAndClothing,
-        (TransactionCategory)8 => TransactionCategory.Salary,
-        (TransactionCategory)9 => TransactionCategory.Other,
-        (TransactionCategory)10 => TransactionCategory.Other,
-        (TransactionCategory)11 => TransactionCategory.EducationAndWork,
-        _ => category
-    };
 }
 
 public sealed record TransactionDto(

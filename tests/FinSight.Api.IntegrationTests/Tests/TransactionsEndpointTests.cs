@@ -106,6 +106,38 @@ public sealed class TransactionsEndpointTests(FinSightWebApplicationFactory fact
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
+    [Fact]
+    public async Task RecordTransaction_HousingAndRentDebit_CountsInHousingAndRentBudgetAndList()
+    {
+        var client = await factory.CreateAuthenticatedClientAsync();
+        var accountId = await CreateAccountAsync(client, "Rent Chequing");
+        var now = DateTimeOffset.UtcNow;
+        (await client.PostAsJsonAsync("/api/v1/budgets", new
+        {
+            Category = (int)TransactionCategory.HousingAndRent,
+            LimitAmount = 2000m, Currency = "CAD", Month = now.Month, Year = now.Year
+        })).EnsureSuccessStatusCode();
+
+        (await client.PostAsJsonAsync("/api/v1/transactions", new
+        {
+            AccountId = accountId,
+            Description = "Rent",
+            Amount = 1500m,
+            Currency = "CAD",
+            Type = (int)TransactionType.Debit,
+            OccurredAt = now,
+            Category = (int)TransactionCategory.HousingAndRent
+        })).StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var budgets = await client.GetFromJsonAsync<JsonElement>($"/api/v1/budgets/{now.Year}/{now.Month}");
+        var budget = budgets.EnumerateArray().Single();
+        budget.GetProperty("category").GetString().Should().Be("HousingAndRent");
+        budget.GetProperty("spentAmount").GetDecimal().Should().Be(1500m);
+
+        var txs = await client.GetFromJsonAsync<JsonElement>($"/api/v1/transactions/account/{accountId}?page=1&pageSize=10");
+        txs.EnumerateArray().Single().GetProperty("category").GetString().Should().Be("HousingAndRent");
+    }
+
     private static async Task<Guid> CreateAccountAsync(HttpClient client, string name)
     {
         var response = await client.PostAsJsonAsync("/api/v1/accounts", new

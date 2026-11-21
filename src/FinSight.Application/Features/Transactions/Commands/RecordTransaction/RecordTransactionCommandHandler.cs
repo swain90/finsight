@@ -30,17 +30,16 @@ public sealed class RecordTransactionCommandHandler(
             return Result.Failure<Guid>(Error.NotFound);
 
         var money = new Money(request.Amount, request.Currency);
-        var normalizedCategory = NormalizeLegacyCategory(request.Category);
         var transaction = account.RecordTransaction(
             request.Description, money, request.Type,
-            request.OccurredAt, normalizedCategory, request.MerchantName);
+            request.OccurredAt, request.Category, request.MerchantName);
 
         // Debit transactions contribute to budget spend for the matching month/category.
         if (request.Type == TransactionType.Debit)
         {
             var budget = await budgetRepository.GetByCategoryAsync(
                 currentUserService.UserId.Value,
-                normalizedCategory,
+                request.Category,
                 request.OccurredAt.Month,
                 request.OccurredAt.Year,
                 cancellationToken);
@@ -58,20 +57,4 @@ public sealed class RecordTransactionCommandHandler(
 
         return Result.Success(transaction.Id);
     }
-
-    private static TransactionCategory NormalizeLegacyCategory(TransactionCategory category) => category switch
-    {
-        (TransactionCategory)1 => TransactionCategory.GroceriesAndFood,
-        (TransactionCategory)2 => TransactionCategory.Transportation,
-        (TransactionCategory)3 => TransactionCategory.HousingAndRent,
-        (TransactionCategory)4 => TransactionCategory.Utilities,
-        (TransactionCategory)5 => TransactionCategory.HealthAndMedical,
-        (TransactionCategory)6 => TransactionCategory.Entertainment,
-        (TransactionCategory)7 => TransactionCategory.ShoppingAndClothing,
-        (TransactionCategory)8 => TransactionCategory.Salary,
-        (TransactionCategory)9 => TransactionCategory.Other,
-        (TransactionCategory)10 => TransactionCategory.Other,
-        (TransactionCategory)11 => TransactionCategory.EducationAndWork,
-        _ => category
-    };
 }
