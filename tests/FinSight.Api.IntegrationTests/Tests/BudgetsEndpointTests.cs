@@ -159,4 +159,38 @@ public sealed class BudgetsEndpointTests(FinSightWebApplicationFactory factory)
         var body = await getResp.Content.ReadAsStringAsync();
         body.Should().NotContain(budgetId.ToString());
     }
+
+    [Fact]
+    public async Task DeleteBudget_OtherUsersBudget_Returns404()
+    {
+        var (owner, other) = (await factory.CreateAuthenticatedClientAsync(), await factory.CreateAuthenticatedClientAsync());
+        var budgetId = await CreateBudgetAsync(owner);
+
+        var response = await other.DeleteAsync($"/api/v1/budgets/{budgetId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await owner.DeleteAsync($"/api/v1/budgets/{budgetId}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task UpdateBudget_OtherUsersBudget_Returns404()
+    {
+        var (owner, other) = (await factory.CreateAuthenticatedClientAsync(), await factory.CreateAuthenticatedClientAsync());
+        var budgetId = await CreateBudgetAsync(owner);
+
+        var response = await other.PutAsJsonAsync($"/api/v1/budgets/{budgetId}", new { NewLimit = 999m });
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    private static async Task<Guid> CreateBudgetAsync(HttpClient client)
+    {
+        var resp = await client.PostAsJsonAsync("/api/v1/budgets", new
+        {
+            Category = (int)TransactionCategory.Utilities,
+            LimitAmount = 100m, Currency = "CAD", Month = ThisMonth, Year = ThisYear
+        });
+        resp.EnsureSuccessStatusCode();
+        return await resp.Content.ReadFromJsonAsync<Guid>();
+    }
 }

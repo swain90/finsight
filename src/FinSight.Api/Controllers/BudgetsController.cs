@@ -57,11 +57,7 @@ public class BudgetsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new UpdateBudgetCommand(budgetId, request.NewLimit), ct);
 
-        return result.IsSuccess
-            ? NoContent()
-            : result.Error == FinSight.Domain.Common.Error.NotFound
-                ? NotFound()
-                : Unauthorized();
+        return result.IsSuccess ? NoContent() : this.ToProblemResult(result.Error);
     }
 
     /// <summary>Delete a budget</summary>
@@ -72,11 +68,7 @@ public class BudgetsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new DeleteBudgetCommand(budgetId), ct);
 
-        return result.IsSuccess
-            ? NoContent()
-            : result.Error == FinSight.Domain.Common.Error.NotFound
-                ? NotFound()
-                : Unauthorized();
+        return result.IsSuccess ? NoContent() : this.ToProblemResult(result.Error);
     }
 }
 
