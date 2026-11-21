@@ -1,0 +1,79 @@
+using FinSight.Domain.Entities;
+using FinSight.Domain.Enums;
+using FinSight.Domain.Exceptions;
+using FinSight.Domain.ValueObjects;
+using FluentAssertions;
+using Xunit;
+
+namespace FinSight.Domain.Tests.Entities;
+
+public class ImportBatchTests
+{
+    private static ImportBatch Batch() => ImportBatch.Create(Guid.NewGuid(), Institution.Cibc, "oct.csv");
+
+    private static ImportRow Row(int line, DateOnly on, string raw = "raw") =>
+        ImportRow.Create(line, on, "LOBLAWS", null, Money.CAD(10m), TransactionType.Debit,
+            TransactionCategory.GroceriesAndFood, TransactionKind.Regular, raw);
+
+    [Fact]
+    public void AddRow_WidensPeriod()
+    {
+        var b = Batch();
+        b.AddRow(Row(1, new DateOnly(2026, 10, 28)));
+        b.AddRow(Row(2, new DateOnly(2026, 10, 3)));
+        b.PeriodStart.Should().Be(new DateOnly(2026, 10, 3));
+        b.PeriodEnd.Should().Be(new DateOnly(2026, 10, 28));
+        b.Rows.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void Commit_FromPending_SetsCommittedAndWarning()
+    {
+        var b = Batch();
+        b.Commit("off by 5");
+        (b.Status, b.ReconciliationWarning).Should().Be((ImportBatchStatus.Committed, "off by 5"));
+        b.CommittedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Commit_Twice_Throws()
+    {
+        var b = Batch();
+        b.Commit(null);
+        var act = () => b.Commit(null);
+        act.Should().Throw<DomainException>();
+    }
+
+    [Fact]
+    public void Discard_Committed_Throws()
+    {
+        var b = Batch();
+        b.Commit(null);
+        var act = () => b.Discard();
+        act.Should().Throw<DomainException>();
+    }
+
+    [Fact]
+    public void MarkUndone_Committed_SetsDiscarded()
+    {
+        var b = Batch();
+        b.Commit(null);
+        b.MarkUndone();
+        b.Status.Should().Be(ImportBatchStatus.Discarded);
+    }
+
+    [Fact]
+    public void AssignAccount_Duplicate_ExcludesRow()
+    {
+        var r = Row(1, new DateOnly(2026, 10, 3));
+        var acct = Guid.NewGuid();
+        r.AssignAccount(acct, "fp", true);
+        (r.AccountId, r.Fingerprint, r.IsDuplicate, r.IsExcluded).Should().Be((acct, "fp", true, true));
+    }
+
+    [Fact]
+    public void Create_LongRawLine_TruncatesTo1000()
+    {
+        Row(1, new DateOnly(2026, 10, 3), new string('x', 2000)).RawLine.Should().HaveLength(1000);
+    }
+}

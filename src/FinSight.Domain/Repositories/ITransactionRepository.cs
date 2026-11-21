@@ -13,4 +13,12 @@ public interface ITransactionRepository
     Task<IReadOnlyList<Transaction>> GetAnomaliesAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<Transaction?> GetByPlaidIdAsync(string plaidTransactionId, CancellationToken cancellationToken = default);
     Task AddRangeAsync(IEnumerable<Transaction> transactions, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlySet<string>> GetExistingFingerprintsAsync(Guid accountId, IReadOnlyCollection<string> fingerprints, CancellationToken cancellationToken = default);
+
+    /// <summary>The user's unpaired Regular/PendingTransfer transactions in range (not dismissed), with Account included.</summary>
+    Task<IReadOnlyList<Transaction>> GetMatchPoolAsync(Guid userId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Transaction>> GetByImportBatchIdAsync(Guid batchId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Transaction>> GetByTransferGroupIdsAsync(IReadOnlyCollection<Guid> groupIds, CancellationToken cancellationToken = default);
+    void Remove(Transaction transaction);
 }

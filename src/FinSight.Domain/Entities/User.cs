@@ -1,5 +1,6 @@
 using FinSight.Domain.Common;
 using FinSight.Domain.Events;
+using FinSight.Domain.Exceptions;
 
 namespace FinSight.Domain.Entities;
 
@@ -14,6 +15,8 @@ public sealed class User : BaseEntity
     public string FullName => $"{FirstName} {LastName}";
     public bool IsActive { get; private set; } = true;
     public DateTimeOffset? LastLoginAt { get; private set; }
+    public int CorporateFiscalYearEndMonth { get; private set; } = 12;
+    public int CorporateFiscalYearEndDay { get; private set; } = 31;
 
     public IReadOnlyCollection<Account> Accounts => _accounts.AsReadOnly();
     public ICollection<RefreshToken> RefreshTokens { get; private set; } = new List<RefreshToken>();
@@ -59,6 +62,17 @@ public sealed class User : BaseEntity
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(newHash);
         PasswordHash = newHash;
+        SetUpdatedAt();
+    }
+
+    /// <summary>Sets the corporate fiscal year end. Must be a valid date in a non-leap year (Feb 29 is rejected).</summary>
+    public void SetCorporateFiscalYearEnd(int month, int day)
+    {
+        if (month is < 1 or > 12 || day < 1 || day > DateTime.DaysInMonth(2025, month))
+            throw new DomainException($"{month}/{day} is not a valid fiscal year end date.");
+
+        CorporateFiscalYearEndMonth = month;
+        CorporateFiscalYearEndDay = day;
         SetUpdatedAt();
     }
 

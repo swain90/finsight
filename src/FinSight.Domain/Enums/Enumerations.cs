@@ -251,3 +251,11 @@ public enum BudgetAlertThreshold
     /// <summary>Alert when budget is fully spent (100%).</summary>
     FullySpent = 100
 }
+
+/// <summary>Lifecycle of a statement import batch.</summary>
+public enum ImportBatchStatus
+{
+    PendingReview = 1,
+    Committed = 2,
+    Discarded = 3
+}

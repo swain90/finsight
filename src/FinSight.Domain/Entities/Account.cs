@@ -21,6 +21,7 @@ public sealed class Account : BaseEntity
     public string? PlaidAccountId { get; private set; }  // external reference
     public bool IsActive { get; private set; } = true;
     public DateTimeOffset? LastSyncedAt { get; private set; }
+    public DateOnly? LatestSnapshotAsOf { get; private set; }
 
     public User User { get; private set; } = null!;
     public IReadOnlyCollection<Transaction> Transactions => _transactions.AsReadOnly();
@@ -110,6 +111,35 @@ public sealed class Account : BaseEntity
     {
         Balance = newBalance;
         LastSyncedAt = DateTimeOffset.UtcNow;
+        SetUpdatedAt();
+    }
+
+    /// <summary>Records a statement balance. Only moves <see cref="Balance"/> when the snapshot is not older than the latest one.</summary>
+    public BalanceSnapshot RecordBalanceSnapshot(DateOnly asOf, Money balance, Guid? importBatchId)
+    {
+        var snapshot = BalanceSnapshot.Create(Id, asOf, balance, importBatchId);
+        if (LatestSnapshotAsOf is null || asOf >= LatestSnapshotAsOf)
+        {
+            Balance = balance;
+            LatestSnapshotAsOf = asOf;
+            SetUpdatedAt();
+        }
+        return snapshot;
+    }
+
+    /// <summary>Used by undo: resets balance to the given latest snapshot, or to zero when none remain.</summary>
+    public void ResetBalanceFromSnapshot(BalanceSnapshot? latest)
+    {
+        if (latest is null)
+        {
+            Balance = Money.Zero(Balance.Currency);
+            LatestSnapshotAsOf = null;
+        }
+        else
+        {
+            Balance = latest.Balance;
+            LatestSnapshotAsOf = latest.AsOf;
+        }
         SetUpdatedAt();
     }
 
