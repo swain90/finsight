@@ -48,7 +48,10 @@ public static class TransferMatcher
                 && Math.Abs(c.Date.DayNumber - target.Date.DayNumber) <= WindowDays)
             .ToList();
 
-    /// <summary>Returns exactly one decision per pool item; each transaction is paired at most once.</summary>
+    /// <summary>
+    /// Returns exactly one decision per pool item; each transaction is paired at most once.
+    /// A Personal-debit ↔ Corporation-credit pair is never auto-paired (both stay PendingTransfer).
+    /// </summary>
     public static IReadOnlyList<MatchDecision> Match(IReadOnlyList<MatchCandidate> pool)
     {
         var ordered = pool.OrderBy(c => c.Date).ThenBy(c => c.TransactionId).ToList();
@@ -63,7 +66,10 @@ public static class TransferMatcher
             }
 
             var partner = FindPartner(a, candidates, partners);
-            if (partner is not null)
+
+            // Personal → Corporation is rare (owner funding the corporation) and must be confirmed by the
+            // owner (spec §5), so it is never auto-paired: both legs stay PendingTransfer.
+            if (partner is not null && !IsPersonalToCorporation(a, partner))
             {
                 partners[a.TransactionId] = partner;
                 partners[partner.TransactionId] = a;
@@ -90,6 +96,14 @@ public static class TransferMatcher
 
         var category = self.Type == TransactionType.Credit ? TransactionCategory.PayFromCorporation : (TransactionCategory?)null;
         return (TransactionKind.OwnerPay, category);
+    }
+
+    /// <summary>Whether the pair is a Personal debit into a Corporation credit.</summary>
+    public static bool IsPersonalToCorporation(MatchCandidate x, MatchCandidate y)
+    {
+        var debit = x.Type == TransactionType.Debit ? x : y;
+        var credit = x.Type == TransactionType.Credit ? x : y;
+        return debit.Owner == AccountOwner.Personal && credit.Owner == AccountOwner.Corporation;
     }
 
     private static MatchCandidate? FindPartner(

@@ -70,6 +70,37 @@ public class NeedsAttentionTests
     }
 
     [Fact]
+    public async Task NeedsAttention_PersonalToCorporationPair_EachListsTheOtherAndResolvesAsTransfer()
+    {
+        var personal = Acct("CIBC Savings");
+        var corp = Acct("RBC Chequing", AccountOwner.Corporation);
+        var debit = Tx(personal, "TRANSFER TO RBC", TransactionType.Debit, 800m);
+        var credit = Tx(corp, "DEPOSIT", TransactionType.Credit, 800m);
+        _transactions.GetPendingTransfersAsync(_userId, Arg.Any<CancellationToken>())
+            .Returns(new List<Transaction> { debit, credit });
+        Pool(debit, credit);
+
+        var list = await new GetNeedsAttentionQueryHandler(_transactions, _user)
+            .Handle(new GetNeedsAttentionQuery(), default);
+
+        list.Value.Should().HaveCount(2);
+        list.Value.Single(i => i.TransactionId == debit.Id).Candidates.Should().ContainSingle()
+            .Which.TransactionId.Should().Be(credit.Id);
+        list.Value.Single(i => i.TransactionId == credit.Id).Candidates.Should().ContainSingle()
+            .Which.TransactionId.Should().Be(debit.Id);
+
+        _transactions.GetByIdAsync(debit.Id, Arg.Any<CancellationToken>()).Returns(debit);
+        _transactions.GetByIdAsync(credit.Id, Arg.Any<CancellationToken>()).Returns(credit);
+        var resolved = await Handler().Handle(new ResolveTransferCommand(debit.Id, credit.Id), default);
+
+        resolved.IsSuccess.Should().BeTrue();
+        debit.Kind.Should().Be(TransactionKind.Transfer);
+        credit.Kind.Should().Be(TransactionKind.Transfer);
+        debit.TransferGroupId.Should().NotBeNull().And.Be(credit.TransferGroupId);
+        credit.Category.Should().Be(TransactionCategory.Uncategorized);
+    }
+
+    [Fact]
     public async Task Resolve_NullPartner_MarksRegularDismissed()
     {
         var tx = Tx(Acct("Chequing"), "OUT", TransactionType.Debit);

@@ -44,16 +44,38 @@ public class TransferMatcherTests
     }
 
     [Fact]
-    public void Match_PersonalDebitToCorpCredit_IsTransfer()
+    public void Match_PersonalDebitToCorpCredit_NeverAutoPairedBothPending()
     {
+        // R23: owner money into the corporation is rare and must be confirmed by the owner.
         var debit = C(AccA, AccountOwner.Personal, 5, 800m, TransactionType.Debit);
         var credit = C(AccB, AccountOwner.Corporation, 5, 800m, TransactionType.Credit);
 
         var d = TransferMatcher.Match([debit, credit]);
 
-        For(d, debit).Kind.Should().Be(TransactionKind.Transfer);
-        For(d, credit).Kind.Should().Be(TransactionKind.Transfer);
-        For(d, credit).Category.Should().BeNull();
+        For(d, debit).Should().Be(new MatchDecision(debit.TransactionId, null, TransactionKind.PendingTransfer, null));
+        For(d, credit).Should().Be(new MatchDecision(credit.TransactionId, null, TransactionKind.PendingTransfer, null));
+    }
+
+    [Fact]
+    public void Match_PersonalDebitToCorpCreditWithHints_StillNotAutoPaired()
+    {
+        var debit = C(AccA, AccountOwner.Personal, 5, 800m, TransactionType.Debit, hint: true);
+        var credit = C(AccB, AccountOwner.Corporation, 6, 800m, TransactionType.Credit, hint: true);
+
+        var d = TransferMatcher.Match([debit, credit]);
+
+        d.Should().OnlyContain(x => x.PartnerId == null && x.Kind == TransactionKind.PendingTransfer);
+    }
+
+    [Fact]
+    public void DecidePair_PersonalDebitToCorpCredit_IsTransfer()
+    {
+        // Used by ResolveTransfer once the owner confirms the pair.
+        var debit = C(AccA, AccountOwner.Personal, 5, 800m, TransactionType.Debit);
+        var credit = C(AccB, AccountOwner.Corporation, 5, 800m, TransactionType.Credit);
+
+        TransferMatcher.DecidePair(debit, credit).Should().Be((TransactionKind.Transfer, (TransactionCategory?)null));
+        TransferMatcher.DecidePair(credit, debit).Should().Be((TransactionKind.Transfer, (TransactionCategory?)null));
     }
 
     [Fact]
