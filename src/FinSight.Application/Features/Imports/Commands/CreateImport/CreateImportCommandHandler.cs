@@ -36,6 +36,16 @@ public sealed class CreateImportCommandHandler(
             return Result.Failure<ImportBatchDto>(Error.NotFound);
 
         var userAccounts = await accountRepository.GetByUserIdAsync(userId, cancellationToken);
+        if (request.AccountId is { } explicitId)
+        {
+            var explicitAccount = userAccounts.FirstOrDefault(a => a.Id == explicitId);
+            if (explicitAccount is null)
+                return Result.Failure<ImportBatchDto>(Error.NotFound);
+            if (!explicitAccount.IsActive)
+                return Result.Failure<ImportBatchDto>(Error.Custom("Import.AccountInactive",
+                    "That account is inactive. Reactivate it or pick another account."));
+        }
+
         var institutionAccounts = userAccounts
             .Where(a => a.IsActive && a.Institution == parsed.Institution)
             .ToList();

@@ -170,4 +170,35 @@ public class CreateImportCommandHandlerTests : HandlerTestBase
         await _batches.DidNotReceive().AddAsync(Arg.Any<ImportBatch>(), Arg.Any<CancellationToken>());
         await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_ExplicitInactiveAccount_FailsAndSavesNothing()
+    {
+        var acct = Acct(Institution.Td);
+        acct.Deactivate();
+        Setup(Institution.Td, [Row(2, "COFFEE")], acct);
+        _accounts.BelongsToUserAsync(acct.Id, _userId, Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await _handler.Handle(Cmd(acct.Id), default);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Import.AccountInactive");
+        result.Error.Description.Should().Be("That account is inactive. Reactivate it or pick another account.");
+        await _batches.DidNotReceive().AddAsync(Arg.Any<ImportBatch>(), Arg.Any<CancellationToken>());
+        await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ExplicitAccountId_AssignsEveryRow()
+    {
+        var a1 = Acct(Institution.Td, "1234", "A1");
+        var a2 = Acct(Institution.Td, "9999", "A2");
+        Setup(Institution.Td, [Row(2, "COFFEE", aref: "1234"), Row(3, "TEA", aref: "9999")], a1, a2);
+        _accounts.BelongsToUserAsync(a2.Id, _userId, Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await _handler.Handle(Cmd(a2.Id), default);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Rows.Should().OnlyContain(r => r.AccountId == a2.Id);
+    }
 }
