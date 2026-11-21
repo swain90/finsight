@@ -17,12 +17,13 @@ public sealed class GetImportsQueryHandler(
         if (!currentUserService.IsAuthenticated || currentUserService.UserId is null)
             return Result.Failure<IReadOnlyList<ImportBatchSummaryDto>>(Error.Unauthorized);
 
-        var batches = await batchRepository.GetByUserIdAsync(currentUserService.UserId.Value, cancellationToken);
+        var batches = await batchRepository.GetSummariesByUserIdAsync(currentUserService.UserId.Value, cancellationToken);
         IReadOnlyList<ImportBatchSummaryDto> summaries = batches
-            .OrderByDescending(b => b.CreatedAt)
-            .Select(b => new ImportBatchSummaryDto(
-                b.Id, b.Institution.ToString(), b.FileName, b.Status.ToString(),
-                b.PeriodStart, b.PeriodEnd, b.Rows.Count, b.CreatedAt, b.CommittedAt))
+            .OrderByDescending(s => s.Batch.CreatedAt)
+            .Select(s => new ImportBatchSummaryDto(
+                s.Batch.Id, s.Batch.Institution.ToString(), s.Batch.FileName, s.Batch.Status.ToString(),
+                s.Batch.PeriodStart, s.Batch.PeriodEnd, s.RowCount, s.IncludedRowCount,
+                s.Batch.CreatedAt, s.Batch.CommittedAt))
             .ToList();
         return Result.Success(summaries);
     }

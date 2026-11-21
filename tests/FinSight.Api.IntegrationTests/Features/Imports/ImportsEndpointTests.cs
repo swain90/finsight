@@ -124,16 +124,35 @@ public sealed class ImportsEndpointTests(FinSightWebApplicationFactory factory)
         var id = created.GetProperty("id").GetGuid();
         var rowId = created.GetProperty("rows")[0].GetProperty("id").GetGuid();
 
-        (await client.GetAsync("/api/v1/imports")).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await client.GetAsync($"/api/v1/imports/{id}")).StatusCode.Should().Be(HttpStatusCode.OK);
+        var pendingList = await client.GetAsync("/api/v1/imports");
+        pendingList.StatusCode.Should().Be(HttpStatusCode.OK);
+        var pendingSummary = (await ReadJsonAsync(pendingList)).EnumerateArray().Single();
+        pendingSummary.GetProperty("id").GetGuid().Should().Be(id);
+        pendingSummary.GetProperty("status").GetString().Should().Be("PendingReview");
+        pendingSummary.GetProperty("rowCount").GetInt32().Should().Be(2);
+        pendingSummary.GetProperty("includedRowCount").GetInt32().Should().Be(2);
+
+        var get = await client.GetAsync($"/api/v1/imports/{id}");
+        get.StatusCode.Should().Be(HttpStatusCode.OK);
+        var fetched = await ReadJsonAsync(get);
+        fetched.GetProperty("id").GetGuid().Should().Be(id);
+        fetched.GetProperty("status").GetString().Should().Be("PendingReview");
+        fetched.GetProperty("rows").GetArrayLength().Should().Be(2);
+        fetched.GetProperty("rows")[0].GetProperty("description").GetString().Should().Be("Coffee Shop");
+        fetched.GetProperty("rows")[0].GetProperty("amount").GetDecimal().Should().Be(4.50m);
+        fetched.GetProperty("rows")[0].GetProperty("type").GetString().Should().Be("Debit");
+        fetched.GetProperty("accounts").EnumerateArray().Single().GetProperty("accountId").GetGuid().Should().Be(accountId);
 
         var patch = await client.PatchAsJsonAsync($"/api/v1/imports/{id}/rows/{rowId}", new { isExcluded = true });
         patch.StatusCode.Should().Be(HttpStatusCode.OK);
         (await ReadJsonAsync(patch)).GetProperty("isExcluded").GetBoolean().Should().BeTrue();
 
+        // First import for the account: no previous snapshot, nothing to compare against.
         var reconcile = await client.GetAsync(
-            $"/api/v1/imports/{id}/reconciliation?accountId={accountId}&closingBalance=1000");
+            $"/api/v1/imports/{id}/reconciliation?accountId={accountId}&closingBalance=1000&asOf=2026-01-06");
         reconcile.StatusCode.Should().Be(HttpStatusCode.OK);
+        var reconciliation = await ReadJsonAsync(reconcile);
+        reconciliation.GetProperty("skipped").GetBoolean().Should().BeTrue();
 
         var commit = await client.PostAsJsonAsync($"/api/v1/imports/{id}/commit", new
         {
@@ -142,7 +161,13 @@ public sealed class ImportsEndpointTests(FinSightWebApplicationFactory factory)
         commit.StatusCode.Should().Be(HttpStatusCode.OK);
         (await ReadJsonAsync(commit)).GetProperty("status").GetString().Should().Be("Committed");
 
+        var committedSummary = (await ReadJsonAsync(await client.GetAsync("/api/v1/imports"))).EnumerateArray().Single();
+        committedSummary.GetProperty("status").GetString().Should().Be("Committed");
+        committedSummary.GetProperty("rowCount").GetInt32().Should().Be(2);
+        committedSummary.GetProperty("includedRowCount").GetInt32().Should().Be(1);
+
         var delete = await client.DeleteAsync($"/api/v1/imports/{id}");
         delete.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await client.GetAsync($"/api/v1/imports/{id}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }

@@ -79,11 +79,29 @@ public class ReviewOperationsTests
         var recent = ImportBatch.Create(_userId, Institution.Td, "new.csv");
         typeof(BaseEntity).GetProperty("CreatedAt")!.SetValue(old, DateTimeOffset.UtcNow.AddDays(-2));
         typeof(BaseEntity).GetProperty("CreatedAt")!.SetValue(recent, DateTimeOffset.UtcNow);
-        _batches.GetByUserIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(new List<ImportBatch> { old, recent });
+        _batches.GetSummariesByUserIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(new List<ImportBatchSummary>
+        {
+            new(old, 3, 2),
+            new(recent, 5, 4),
+        });
 
         var result = await new GetImportsQueryHandler(_batches, _user).Handle(new GetImportsQuery(), default);
 
         result.Value.Select(x => x.FileName).Should().Equal("new.csv", "old.csv");
+        result.Value.Select(x => (x.RowCount, x.IncludedRowCount)).Should().Equal((5, 4), (3, 2));
+    }
+
+    [Fact]
+    public async Task GetImport_Discarded_NotFound()
+    {
+        var b = ImportBatch.Create(_userId, Institution.Td, "s.csv");
+        b.Discard();
+        _batches.GetByIdAsync(b.Id, _userId, Arg.Any<CancellationToken>()).Returns(b);
+
+        var result = await new GetImportQueryHandler(_batches, _accounts, _snapshots, _user)
+            .Handle(new GetImportQuery(b.Id), default);
+
+        result.Error.Should().Be(Error.NotFound);
     }
 
     [Fact]

@@ -36,6 +36,8 @@ public sealed record ImportRowDto(
     bool IsDuplicate,
     bool IsExcluded);
 
+/// <param name="RowCount">All parsed rows in the batch.</param>
+/// <param name="IncludedRowCount">Rows not excluded; for a committed batch, the transactions it imported.</param>
 public sealed record ImportBatchSummaryDto(
     Guid Id,
     string Institution,
@@ -44,6 +46,7 @@ public sealed record ImportBatchSummaryDto(
     DateOnly? PeriodStart,
     DateOnly? PeriodEnd,
     int RowCount,
+    int IncludedRowCount,
     DateTimeOffset CreatedAt,
     DateTimeOffset? CommittedAt);
 

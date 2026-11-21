@@ -193,7 +193,10 @@ export interface ImportBatchSummary {
   status: string;
   periodStart: string | null;
   periodEnd: string | null;
+  /** All parsed rows in the file. */
   rowCount: number;
+  /** Rows not excluded; for a committed batch, the transactions it imported. */
+  includedRowCount: number;
   createdAt: string;
   committedAt: string | null;
 }

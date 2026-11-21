@@ -53,7 +53,10 @@ export const ImportHistory = ({ onOpen, onRemoved }: ImportHistoryProps) => {
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{b.fileName}</p>
                   <p className="text-xs text-gray-400">
-                    {b.institution} · {b.rowCount} rows
+                    {b.institution} ·{' '}
+                    {b.status === 'Committed'
+                      ? `${b.includedRowCount} imported of ${b.rowCount} rows`
+                      : `${b.rowCount} rows`}
                     {b.periodStart && b.periodEnd && ` · ${b.periodStart} to ${b.periodEnd}`}
                   </p>
                 </div>
@@ -83,7 +86,8 @@ export const ImportHistory = ({ onOpen, onRemoved }: ImportHistoryProps) => {
             className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <h2 id="undo-title" className="text-lg font-semibold text-gray-900">Undo this import?</h2>
             <p className="text-sm text-gray-600 mt-2">
-              This removes the {confirming.rowCount} transactions imported from {confirming.fileName} and
+              This removes the {confirming.includedRowCount}{' '}
+              {confirming.includedRowCount === 1 ? 'transaction' : 'transactions'} imported from {confirming.fileName} and
               reverses their effect on your balances. This cannot be undone.
             </p>
             <div className="mt-5 flex justify-end gap-2">
