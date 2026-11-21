@@ -1,11 +1,23 @@
 import { Card, CardHeader } from '../ui/Card';
 import { useCorporationSummary } from '../../hooks/useReports';
+import { Spinner } from '../ui/Spinner';
+import { errorMessage } from '../../services/api';
 import { fmt } from './format';
 
 /** Hidden entirely when the user has no Corporation-owned account. */
 export const CorporationCard = ({ hasCorporation }: { hasCorporation: boolean }) => {
-  const { data } = useCorporationSummary(hasCorporation);
-  if (!hasCorporation || !data) return null;
+  const { data, isLoading, isError, error } = useCorporationSummary(hasCorporation);
+  if (!hasCorporation) return null;
+  if (isLoading || isError || !data) {
+    return (
+      <Card>
+        <CardHeader title="Corporation" />
+        {isLoading ? <Spinner /> : (
+          <p role="alert" className="text-sm text-red-600">{errorMessage(error, 'Could not load corporation summary.')}</p>
+        )}
+      </Card>
+    );
+  }
 
   const rows: [string, number][] = [
     ['Revenue', data.revenue],

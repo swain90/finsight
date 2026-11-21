@@ -2,13 +2,14 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } f
 import { Card } from '../ui/Card';
 import { Spinner } from '../ui/Spinner';
 import { useNetWorth } from '../../hooks/useReports';
+import { errorMessage } from '../../services/api';
 import { fmt } from './format';
 
 const monthLabel = (d: string) =>
   new Date(`${d}T00:00:00`).toLocaleDateString('en-CA', { month: 'short' });
 
 export const NetWorthCard = () => {
-  const { data, isLoading, isError } = useNetWorth(12);
+  const { data, isLoading, isError, error } = useNetWorth(12);
 
   return (
     <Card className="col-span-2">
@@ -16,7 +17,7 @@ export const NetWorthCard = () => {
       {isLoading ? (
         <div className="flex justify-center py-8"><Spinner /></div>
       ) : isError || !data ? (
-        <p className="text-sm text-red-600 mt-2">Could not load net worth.</p>
+        <p role="alert" className="text-sm text-red-600 mt-2">{errorMessage(error, 'Could not load net worth.')}</p>
       ) : (
         <>
           <div className="flex items-end gap-6 mt-1">

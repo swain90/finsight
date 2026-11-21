@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Spinner } from '../ui/Spinner';
 import { Card } from '../ui/Card';
 import { useNeedsAttention, useResolveTransfer } from '../../hooks/useTransactions';
 import { errorMessage } from '../../services/api';
@@ -7,22 +8,27 @@ const fmt = (n: number) => new Intl.NumberFormat('en-CA', { style: 'currency', c
 const day = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
 
 export const NeedsAttentionPanel = () => {
-  const { data: items = [] } = useNeedsAttention();
+  const { data: items = [], isLoading, isError, error: loadError } = useNeedsAttention();
   const resolve = useResolveTransfer();
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
 
+  if (isLoading) return <Card className="mb-4"><Spinner size="sm" /></Card>;
+  if (isError) {
+    return (
+      <Card className="mb-4 border-red-200">
+        <p role="alert" className="text-sm text-red-600">{errorMessage(loadError, 'Could not load transfers needing attention.')}</p>
+      </Card>
+    );
+  }
   if (items.length === 0) return null;
+  const busy = resolve.isLoading;
 
   const run = async (id: string, partnerId?: string) => {
     setError(null);
-    setBusyId(id);
     try {
       await resolve.mutateAsync({ id, partnerId });
     } catch (err) {
       setError(errorMessage(err));
-    } finally {
-      setBusyId(null);
     }
   };
 
@@ -44,7 +50,7 @@ export const NeedsAttentionPanel = () => {
                 <button
                   key={c.transactionId}
                   className="btn btn--ghost"
-                  disabled={busyId === item.transactionId}
+                  disabled={busy}
                   onClick={() => run(item.transactionId, c.transactionId)}
                 >
                   Pair with {c.accountName} · {day(c.date)} · {c.description} {fmt(c.amount)}
@@ -52,7 +58,7 @@ export const NeedsAttentionPanel = () => {
               ))}
               <button
                 className="btn btn--ghost"
-                disabled={busyId === item.transactionId}
+                disabled={busy}
                 onClick={() => run(item.transactionId)}
               >
                 Not a transfer
