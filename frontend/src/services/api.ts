@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import type {
   AppSettings, AuthResult, ImportBatch, ImportBatchSummary, ImportRow, ImportRowPatch,
-  ReconciliationResult, ClosingBalanceInput,
+  ReconciliationResult, ClosingBalanceInput, NeedsAttentionItem, NetWorth, CorporationSummary, PersonalIncome,
 } from '../types';
 
 export const api = axios.create({
@@ -135,6 +135,28 @@ export const settingsApi = {
 export const transactionsApi = {
   async record(payload: RecordTransactionPayload): Promise<string> {
     const { data } = await api.post<string>('/transactions', payload);
+    return data;
+  },
+  async needsAttention(): Promise<NeedsAttentionItem[]> {
+    const { data } = await api.get<NeedsAttentionItem[]>('/transactions/needs-attention');
+    return data;
+  },
+  async resolveTransfer(id: string, partnerId?: string): Promise<void> {
+    await api.post(`/transactions/${id}/resolve-transfer`, { partnerId: partnerId ?? null });
+  },
+};
+
+export const reportsApi = {
+  async netWorth(months = 12): Promise<NetWorth> {
+    const { data } = await api.get<NetWorth>('/reports/net-worth', { params: { months } });
+    return data;
+  },
+  async corporation(fiscalYear?: number): Promise<CorporationSummary> {
+    const { data } = await api.get<CorporationSummary>('/reports/corporation', { params: { fiscalYear } });
+    return data;
+  },
+  async personalIncome(year?: number): Promise<PersonalIncome> {
+    const { data } = await api.get<PersonalIncome>('/reports/personal-income', { params: { year } });
     return data;
   },
 };

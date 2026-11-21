@@ -42,6 +42,50 @@ export interface Transaction {
   merchantName?: string;
   occurredAt: string;
   isAnomaly: boolean;
+  kind: TransactionKind;
+}
+
+export type TransactionKind = 'Regular' | 'Transfer' | 'OwnerPay' | 'InvestmentTrade' | 'PendingTransfer';
+
+export interface TransferCandidate {
+  transactionId: string;
+  accountName: string;
+  date: string;
+  description: string;
+  amount: number;
+}
+
+export interface NeedsAttentionItem {
+  transactionId: string;
+  accountId: string;
+  accountName: string;
+  date: string;
+  description: string;
+  amount: number;
+  type: string;
+  candidates: TransferCandidate[];
+}
+
+export interface NetWorthPoint { monthEnd: string; personal: number; includingCorporation: number }
+export interface NetWorth {
+  personal: number;
+  includingCorporation: number;
+  currency: string;
+  history: NetWorthPoint[];
+}
+export interface CorporationSummary {
+  fiscalYearStart: string;
+  fiscalYearEnd: string;
+  revenue: number;
+  paidToOwner: number;
+  expenses: number;
+  closingBalance: number;
+}
+export interface PersonalIncome {
+  year: number;
+  payFromCorporation: number;
+  otherTaxableIncome: number;
+  taxShelteredInvestmentIncome: number;
 }
 
 export type TransactionCategory =

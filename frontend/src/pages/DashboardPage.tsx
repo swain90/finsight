@@ -7,15 +7,16 @@ import { Spinner } from '../components/ui/Spinner';
 import { TrendingUp, TrendingDown, AlertTriangle, Sparkles } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAuthStore } from '../store/authStore';
+import { NetWorthCard } from '../components/dashboard/NetWorthCard';
+import { CorporationCard } from '../components/dashboard/CorporationCard';
+import { PayFromCorporationCard } from '../components/dashboard/PayFromCorporationCard';
+import { fmt } from '../components/dashboard/format';
 
 const CATEGORY_COLORS: Record<string, string> = {
   Food: '#10b981', Transportation: '#3b82f6', Entertainment: '#f59e0b',
   Shopping: '#8b5cf6', Utilities: '#ef4444', Subscription: '#ec4899',
   Healthcare: '#14b8a6', Other: '#6b7280',
 };
-
-const fmt = (n: number, currency = 'CAD') =>
-  new Intl.NumberFormat('en-CA', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n);
 
 export const DashboardPage = () => {
   const { user } = useAuthStore();
@@ -24,7 +25,7 @@ export const DashboardPage = () => {
   const { data: insights } = useInsights();
 
   const now = new Date();
-  const totalNetWorth = accounts?.reduce((sum, a) => sum + a.balance, 0) ?? 0;
+  const hasCorporation = accounts?.some((a) => a.owner === 'Corporation') ?? false;
 
   const pieData = insights?.categoryBreakdown
     .filter(c => c.amount > 0)
@@ -43,14 +44,15 @@ export const DashboardPage = () => {
         </p>
       </div>
 
-      {/* KPI Row */}
+      {/* Net worth + corporation */}
       <div className="grid grid-cols-4 gap-4">
-        <Card>
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Net Worth</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{fmt(totalNetWorth)}</p>
-          <p className="text-xs text-gray-400 mt-1">{accounts?.length ?? 0} accounts</p>
-        </Card>
+        <NetWorthCard />
+        <PayFromCorporationCard />
+        <CorporationCard hasCorporation={hasCorporation} />
+      </div>
 
+      {/* KPI Row */}
+      <div className="grid grid-cols-3 gap-4">
         <Card>
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Monthly Spent</p>
           <div className="flex items-end gap-2 mt-1">

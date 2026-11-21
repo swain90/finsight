@@ -5,6 +5,8 @@ import { useTransactions } from '../hooks/useTransactions';
 import { transactionsApi } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Spinner } from '../components/ui/Spinner';
+import { NeedsAttentionPanel } from '../components/transactions/NeedsAttentionPanel';
+import { KindChip } from '../components/transactions/KindChip';
 import { Plus, X, AlertTriangle } from 'lucide-react';
 
 function fmt(n: number, currency = 'CAD') {
@@ -89,6 +91,8 @@ export function TransactionsPage() {
         </button>
       </header>
 
+      <NeedsAttentionPanel />
+
       <div className="tx-controls">
         <div className="account-tabs">
           <button
@@ -136,6 +140,7 @@ export function TransactionsPage() {
                     </td>
                     <td>
                       <span className="tx-table__desc">{tx.description}</span>
+                      <KindChip kind={tx.kind} />
                       {tx.isAnomaly && <span className="anomaly-tag"><AlertTriangle size={11} /> anomaly</span>}
                     </td>
                     <td className="tx-table__merchant">{tx.merchantName ?? '—'}</td>
