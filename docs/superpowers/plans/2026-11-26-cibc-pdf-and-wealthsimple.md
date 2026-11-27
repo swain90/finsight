@@ -99,7 +99,7 @@ FluentAssertions + NSubstitute, Testcontainers, React 18 + react-query v3 + Tail
 **Real layout** (from `samples/`, not committed):
 - Header: `"date","transaction","description","amount","balance","currency"`.
 - Every field is quoted. There is no BOM and no trailing newline.
-- Dates are `yyyy-MM-dd`. Amounts are signed decimals with 1 or 2 decimal places (`-1500.0`, `11.11`).
+- Dates are `yyyy-MM-dd`. Amounts are signed decimals with 1 or 2 decimal places (`-250.0`, `12.34`).
 
 **Fixture rule:**
 - Same structure as the real files, with made-up values.
