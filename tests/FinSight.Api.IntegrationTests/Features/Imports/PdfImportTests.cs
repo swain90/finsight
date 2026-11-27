@@ -108,7 +108,7 @@ public sealed class PdfImportTests(FinSightWebApplicationFactory factory)
         var secondId = second.GetProperty("id").GetGuid();
         second.GetProperty("rows").GetArrayLength().Should().Be(CibcStatementPdf.NextRowCount);
         second.GetProperty("rows").EnumerateArray()
-            .Should().Contain(r => DateOnly.Parse(r.GetProperty("occurredOn").GetString()!) < CibcStatementPdf.PeriodEnd);
+            .Should().Contain(r => DateOnly.Parse(r.GetProperty("date").GetString()!) < CibcStatementPdf.PeriodEnd);
         var closing = second.GetProperty("statementClosingBalance").GetDecimal();
         var asOf = DateOnly.Parse(second.GetProperty("periodEnd").GetString()!);
         closing.Should().Be(CibcStatementPdf.NextClosingBalance);
