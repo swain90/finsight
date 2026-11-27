@@ -32,10 +32,10 @@ public sealed class PdfImportTests(FinSightWebApplicationFactory factory)
         return (client, account.Id);
     }
 
-    private static async Task<HttpResponseMessage> UploadPdfAsync(HttpClient client)
+    private static async Task<HttpResponseMessage> UploadPdfAsync(HttpClient client, byte[]? pdf = null)
     {
         var form = new MultipartFormDataContent();
-        var file = new ByteArrayContent(CibcStatementPdf.Build());
+        var file = new ByteArrayContent(pdf ?? CibcStatementPdf.Build());
         file.Headers.ContentType = new("application/pdf");
         form.Add(file, "file", "statement.pdf");
         return await client.PostAsync("/api/v1/imports", form);
@@ -69,7 +69,7 @@ public sealed class PdfImportTests(FinSightWebApplicationFactory factory)
 
         var commit = await client.PostAsJsonAsync($"/api/v1/imports/{first.GetProperty("id").GetGuid()}/commit", new
         {
-            Balances = new[] { new { AccountId = accountId, ClosingBalance = CibcStatementPdf.ClosingBalance, AsOf = "2026-10-29" } }
+            Balances = new[] { new { AccountId = accountId, ClosingBalance = CibcStatementPdf.ClosingBalance, AsOf = CibcStatementPdf.PeriodEnd } }
         });
         commit.StatusCode.Should().Be(HttpStatusCode.OK, await commit.Content.ReadAsStringAsync());
 
@@ -78,6 +78,56 @@ public sealed class PdfImportTests(FinSightWebApplicationFactory factory)
         var rows = second.GetProperty("rows").EnumerateArray().ToList();
         rows.Should().HaveCount(CibcStatementPdf.RowCount);
         rows.Should().OnlyContain(r => r.GetProperty("isDuplicate").GetBoolean() && r.GetProperty("isExcluded").GetBoolean());
+    }
+
+    [Fact]
+    public async Task UploadPdf_ConsecutiveStatements_NoReconciliationWarning()
+    {
+        var (client, accountId) = await NewUserWithCibcCardAsync();
+
+        // Statement 1: commit with the review screen's pre-fill (the statement's closing balance and period end).
+        var first = await ReadJsonAsync(await UploadPdfAsync(client));
+        var firstCommit = await client.PostAsJsonAsync($"/api/v1/imports/{first.GetProperty("id").GetGuid()}/commit", new
+        {
+            Balances = new[]
+            {
+                new
+                {
+                    AccountId = accountId,
+                    ClosingBalance = first.GetProperty("statementClosingBalance").GetDecimal(),
+                    AsOf = DateOnly.Parse(first.GetProperty("periodEnd").GetString()!),
+                },
+            },
+        });
+        firstCommit.StatusCode.Should().Be(HttpStatusCode.OK, await firstCommit.Content.ReadAsStringAsync());
+
+        // Statement 2 opens at statement 1's closing balance and carries a charge dated before its period start.
+        var secondResponse = await UploadPdfAsync(client, CibcStatementPdf.BuildNext());
+        secondResponse.StatusCode.Should().Be(HttpStatusCode.Created, await secondResponse.Content.ReadAsStringAsync());
+        var second = await ReadJsonAsync(secondResponse);
+        var secondId = second.GetProperty("id").GetGuid();
+        second.GetProperty("rows").GetArrayLength().Should().Be(CibcStatementPdf.NextRowCount);
+        second.GetProperty("rows").EnumerateArray()
+            .Should().Contain(r => DateOnly.Parse(r.GetProperty("occurredOn").GetString()!) < CibcStatementPdf.PeriodEnd);
+        var closing = second.GetProperty("statementClosingBalance").GetDecimal();
+        var asOf = DateOnly.Parse(second.GetProperty("periodEnd").GetString()!);
+        closing.Should().Be(CibcStatementPdf.NextClosingBalance);
+        asOf.Should().Be(CibcStatementPdf.NextPeriodEnd);
+
+        var check = await client.GetFromJsonAsync<JsonElement>(
+            $"/api/v1/imports/{secondId}/reconciliation?accountId={accountId}" +
+            $"&closingBalance={closing.ToString(System.Globalization.CultureInfo.InvariantCulture)}&asOf={asOf:yyyy-MM-dd}");
+        check.GetProperty("skipped").GetBoolean().Should().BeFalse();
+        check.GetProperty("isBalanced").GetBoolean().Should().BeTrue(check.ToString());
+        check.GetProperty("warning").ValueKind.Should().Be(JsonValueKind.Null);
+
+        var secondCommit = await client.PostAsJsonAsync($"/api/v1/imports/{secondId}/commit", new
+        {
+            Balances = new[] { new { AccountId = accountId, ClosingBalance = closing, AsOf = asOf } },
+        });
+        secondCommit.StatusCode.Should().Be(HttpStatusCode.OK, await secondCommit.Content.ReadAsStringAsync());
+        (await ReadJsonAsync(secondCommit)).GetProperty("reconciliationWarning").ValueKind
+            .Should().Be(JsonValueKind.Null);
     }
 
     [Fact]
