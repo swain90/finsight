@@ -22,13 +22,13 @@ needed.
   | Section | Contents | Total line |
   |---|---|---|
   | `Your payments` | Payments to the card, shown as positive amounts | `Total payments` |
-  | `Your interest` | Interest charges, plus `INTEREST REVERSAL` adjustments with a `-2.07***` suffix | `Total interest this period` (excludes the `***` adjustments) |
+  | `Your interest` | Interest charges, plus `INTEREST REVERSAL` adjustments with a `-1.25***` suffix | `Total interest this period` (excludes the `***` adjustments) |
   | `Your new charges and credits` | Purchases are positive; refunds and credits are **negative** | `Total for <card>` |
 
   The charges section can continue across pages (`(continued)`) and is split into `Card number …` subsections.
 - **Row quirks.**
   - A `Ý` marker in front of a description flags a cash-back multiplier.
-  - Foreign purchases have an extra line underneath, such as `120.91 USD @ 1.405839054**`. The row's amount is already
+  - Foreign purchases have an extra line underneath, such as `50.00 USD @ 1.406000000**`. The row's amount is already
     in CAD.
   - Long descriptions sometimes wrap. The two dates can then end up on a different text line from the rest of the
     row.
@@ -157,7 +157,7 @@ This is the anti-goal "a wrong total that looks right" turned into a hard stop.
   `ImportBatch` gains nullable `StatementClosingBalance` and `StatementPeriodEnd` columns (with a migration), and the
   import DTO returns them.
 - Account routing uses the existing `Institution` + `ExternalAccountRef` match. If the owner's CIBC Visa account has
-  `ExternalAccountRef = 5114`, the PDF lands there automatically.
+  `ExternalAccountRef = 1234`, the PDF lands there automatically.
 
 ### 7. Frontend
 

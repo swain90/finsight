@@ -271,13 +271,13 @@ public sealed class StatementTotalsMismatchException(decimal difference) : Excep
 - Section starts: `Your payments`, `Your interest`, `Your new charges and credits` (also `… (continued)` on later
   pages).
 - Section totals:
-  - `Total payments $1,600.00`
+  - `Total payments $1,000.00`
   - `Total interest this period $0.00`
-  - `Total for <card number> $2,631.18`
+  - `Total for <card number> $2,000.00`
 - Card subsections start with `Card number 4500 XXXX XXXX 1234`.
 - Summary lines on page 1:
-  - `Previous balance $1,578.62`
-  - `Total balance = $2,609.80`
+  - `Previous balance $1,500.00`
+  - `Total balance = $2,500.00`
   - `Account number 4500 XXXX XXXX 1234`
 - Period line: `Transactions from September 28 to October 27, 2026`. It can also read
   `Transactions from December 28, 2025 to January 27, 2026`, and the samples also contain the variant
@@ -285,8 +285,8 @@ public sealed class StatementTotalsMismatchException(decimal difference) : Excep
 - Row decorations:
   - A leading cash-back marker (`Ý` in pdftotext output; PdfPig may decode it as another single non-ASCII glyph) is
     stripped.
-  - Foreign purchases have a following line `120.91 USD @ 1.405839054**`, whose words sit left of the amount column.
-- Interest reversals: amounts like `-2.07***`. These are not in `Total interest this period`, but they are in
+  - Foreign purchases have a following line `50.00 USD @ 1.406000000**`, whose words sit left of the amount column.
+- Interest reversals: amounts like `-1.25***`. These are not in `Total interest this period`, but they are in
   `Total balance`.
 - One real charge row has **only one** date word pair in the date area.
 
