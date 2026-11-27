@@ -79,9 +79,18 @@ const AccountBalance = ({ batchId, account, entry, rowsKey, onChange }: RowProps
               <CheckCircle2 className="h-4 w-4" /> ✓ Balanced
             </p>
           ) : (
-            <p className="text-amber-700 flex items-center gap-1">
-              <AlertTriangle className="h-4 w-4" /> ⚠ Off by {fmtMoney(Math.abs(result.difference ?? 0))}
-            </p>
+            <>
+              {Math.abs(result.difference ?? 0) >= 0.005 && (
+                <p className="text-amber-700 flex items-center gap-1">
+                  <AlertTriangle className="h-4 w-4" /> ⚠ Off by {fmtMoney(Math.abs(result.difference ?? 0))}
+                </p>
+              )}
+              {result.warning && (
+                <p className="text-amber-700 flex items-center gap-1">
+                  <AlertTriangle className="h-4 w-4" /> ⚠ {result.warning}
+                </p>
+              )}
+            </>
           )
         )}
       </div>

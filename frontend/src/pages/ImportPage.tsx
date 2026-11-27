@@ -49,16 +49,19 @@ const Review = ({ batch, onClose, onCommitted }: ReviewProps) => {
 
   const rowsKey = included.map((r) => `${r.id}:${r.accountId}:${r.isExcluded}`).join('|');
 
-  // Default each account's "as of" to the statement's PeriodEnd.
+  // Default each account's "as of" to the statement's PeriodEnd. A PDF statement's closing balance belongs to
+  // its one account, so it pre-fills only while the batch has exactly one; an existing entry (possibly typed by
+  // the user) is never overwritten.
   useEffect(() => {
     setEntries((prev) => {
       const next = { ...prev };
+      const statementBalance =
+        balanceAccounts.length === 1 && batch.statementClosingBalance != null
+          ? batch.statementClosingBalance.toFixed(2)
+          : '';
       for (const a of balanceAccounts) {
         if (!next[a.accountId]) {
-          next[a.accountId] = {
-            value: batch.statementClosingBalance != null ? String(batch.statementClosingBalance) : '',
-            asOf: batch.periodEnd ?? '',
-          };
+          next[a.accountId] = { value: statementBalance, asOf: batch.periodEnd ?? '' };
         }
       }
       return next;

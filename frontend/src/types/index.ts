@@ -208,6 +208,8 @@ export interface ReconciliationResult {
   expected: number | null;
   difference: number | null;
   isBalanced: boolean;
+  /** A problem besides the closing difference, e.g. the balance on record not matching the statement's opening. */
+  warning?: string | null;
 }
 
 export interface ImportRowPatch {
