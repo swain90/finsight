@@ -74,10 +74,12 @@ public sealed partial class CibcCreditCardPdfReader : IPdfStatementReader
 
     public Institution Institution => Institution.Cibc;
 
+    /// <summary>A CIBC credit card statement; other CIBC PDFs (chequing, line of credit) have no card charges section.</summary>
     public bool CanRead(PdfText text) =>
         text.Lines.Any(l => l.Text.Contains("CIBC", StringComparison.Ordinal))
         && text.Lines.Any(l => l.Text.StartsWith("Account number", StringComparison.Ordinal))
-        && text.Lines.Any(l => PeriodLine().IsMatch(l.Text));
+        && text.Lines.Any(l => PeriodLine().IsMatch(l.Text))
+        && text.Lines.Any(l => l.Text.Contains("Your new charges and credits", StringComparison.Ordinal));
 
     public ParsedStatement Read(PdfText text)
     {
@@ -87,7 +89,9 @@ public sealed partial class CibcCreditCardPdfReader : IPdfStatementReader
         if (periodStart is null || periodEnd is null || previousBalance is null || totalBalance is null)
             throw new StatementFormatException(1, 1, "Statement summary not found.");
 
-        var accountRef = ReadAccountRef(text);
+        // Without it the batch would be routed to any lone CIBC account, which could be chequing.
+        var accountRef = ReadAccountRef(text)
+            ?? throw new StatementFormatException(1, 1, "Account number not found.");
 
         var drafts = new List<RowDraft>();
         decimal? printedPayments = null;

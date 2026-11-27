@@ -431,6 +431,41 @@ public class CibcCreditCardPdfReaderTests
     }
 
     [Fact]
+    public void Read_NoAccountNumber_ThrowsFormatException()
+    {
+        // Without the card number the batch would be routed to any lone CIBC account (possibly chequing).
+        var doc = new Doc()
+            .Line((72.7, "CIBC Dividend Visa Infinite Card"))
+            .Line((72.7, "Previous balance"), (337.4, "$0.00"))
+            .Line((72.7, "Total balance ="), (337.4, "$10.00"))
+            .NewPage().PeriodLine()
+            .ChargesHeader().CardNumber()
+            .Charge("Oct 01", "Oct 02", "ALPHA STORE SAMPLETOWN ZZ", "Retail and Grocery", "10.00")
+            .TotalFor("$10.00");
+
+        var act = () => Reader.Read(doc.Text);
+
+        var ex = act.Should().Throw<StatementFormatException>().Which;
+        ex.Message.Should().Be("Account number not found.");
+        ex.Line.Should().Be(1);
+        ex.Page.Should().Be(1);
+    }
+
+    [Fact]
+    public void CanRead_CibcPdfWithoutChargesSection_False()
+    {
+        // Another CIBC PDF (e.g. chequing) with an account number and a period line, but no card charges section.
+        var other = new Doc()
+            .Summary("$1,000.00", "$500.00")
+            .NewPage().PeriodLine()
+            .PaymentsHeader()
+            .Payment("Oct 07", "Oct 08", "500.00")
+            .TotalPayments("$500.00");
+
+        Reader.CanRead(other.Text).Should().BeFalse();
+    }
+
+    [Fact]
     public void CanRead_CibcStatement_True() =>
         Reader.CanRead(BasicStatement().Text).Should().BeTrue();
 
