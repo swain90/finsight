@@ -225,6 +225,17 @@ public class StatementParserTests
     }
 
     [Fact]
+    public void Parse_PdfReaderUnexpectedException_UnknownFormat()
+    {
+        var result = PdfParser(new FakePdfReader(new InvalidOperationException("reader bug")))
+            .Parse(Pdf(), "s.pdf");
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Import.UnknownFormat");
+        result.Error.Description.Should().Be(UnknownMessage);
+    }
+
+    [Fact]
     public void Parse_PdfRowFormatError_PageMessage()
     {
         var result = PdfParser(new FakePdfReader(new StatementFormatException(7, 2, "Unreadable date.")))

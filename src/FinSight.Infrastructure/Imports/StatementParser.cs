@@ -7,12 +7,14 @@ using FinSight.Application.Common.Interfaces;
 using FinSight.Domain.Common;
 using FinSight.Domain.ValueObjects;
 using FinSight.Infrastructure.Imports.Pdf;
+using Microsoft.Extensions.Logging;
 
 namespace FinSight.Infrastructure.Imports;
 
-public sealed class StatementParser(
+public sealed partial class StatementParser(
     IEnumerable<IStatementReader> readers,
-    IEnumerable<IPdfStatementReader> pdfReaders) : IStatementParser
+    IEnumerable<IPdfStatementReader> pdfReaders,
+    ILogger<StatementParser>? logger = null) : IStatementParser
 {
     private const string UnknownFileMessage =
         "Unrecognized file. Expected a CSV export from CIBC, TD, MBNA, RBC or Wealthsimple, or a CIBC credit card PDF statement.";
@@ -80,6 +82,14 @@ public sealed class StatementParser(
                 $"This CIBC statement's transactions don't add up to its totals (off by ${off}). " +
                 "The statement layout may have changed; nothing was imported."));
         }
+        catch (Exception ex)
+        {
+            // A reader bug or an unexpected layout must not surface as a 500. Only the types are logged: the
+            // message could quote statement text.
+            if (logger is not null)
+                LogReaderFailed(logger, reader.GetType().Name, ex.GetType().FullName ?? ex.GetType().Name);
+            return Result.Failure<ParsedStatement>(Error.Custom("Import.UnknownFormat", UnknownFileMessage));
+        }
 
         return Finish(statement.Rows, statement, r => $"Page {PageOf(text, r.LineNumber)}");
     }
@@ -129,6 +139,9 @@ public sealed class StatementParser(
         if (nonPositive is not null)
             throw new StatementFormatException(nonPositive.LineNumber, "Amount must be positive.");
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "PDF reader {Reader} failed with {ExceptionType}")]
+    private static partial void LogReaderFailed(ILogger logger, string reader, string exceptionType);
 
     private static int PageOf(PdfText text, int lineNumber) =>
         text.Lines.FirstOrDefault(l => l.LineNumber == lineNumber)?.Page ?? 1;
