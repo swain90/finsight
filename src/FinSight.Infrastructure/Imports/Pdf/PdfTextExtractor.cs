@@ -1,4 +1,5 @@
 using UglyToad.PdfPig;
+using UglyToad.PdfPig.Content;
 
 namespace FinSight.Infrastructure.Imports.Pdf;
 
@@ -21,12 +22,13 @@ public static class PdfTextExtractor
             foreach (var page in document.GetPages())
             {
                 var words = page.GetWords()
-                    .Where(w => !string.IsNullOrWhiteSpace(w.Text))
+                    // Rotated margin text has a bounding box far off its baseline and would merge into rows.
+                    .Where(w => w.TextOrientation == TextOrientation.Horizontal && !string.IsNullOrWhiteSpace(w.Text))
                     .OrderByDescending(w => w.BoundingBox.Bottom)
                     .ThenBy(w => w.BoundingBox.Left)
                     .ToList();
 
-                var group = new List<UglyToad.PdfPig.Content.Word>();
+                var group = new List<Word>();
                 foreach (var word in words)
                 {
                     if (group.Count > 0 &&
@@ -49,7 +51,7 @@ public static class PdfTextExtractor
         }
     }
 
-    private static PdfLine ToLine(int page, int lineNumber, List<UglyToad.PdfPig.Content.Word> group) =>
+    private static PdfLine ToLine(int page, int lineNumber, List<Word> group) =>
         new(page, lineNumber, group[0].BoundingBox.Bottom,
             group.OrderBy(w => w.BoundingBox.Left)
                 .Select(w => new PdfWord(w.Text, w.BoundingBox.Left, w.BoundingBox.Right))

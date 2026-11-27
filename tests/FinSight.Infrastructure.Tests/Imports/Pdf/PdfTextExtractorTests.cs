@@ -30,6 +30,17 @@ public class PdfTextExtractorTests
     }
 
     [Fact]
+    public void Extract_RotatedMarginText_IsIgnored()
+    {
+        // Rotated text runs upward from (50, 690) so its box spans the horizontal row's baseline.
+        var pdf = TestPdf.BuildWithRotatedText("30", 50, 690, "Mar 11 Mar 11 PURCHASE", 80, 700);
+
+        var text = PdfTextExtractor.Extract(pdf);
+
+        text.Lines.Should().ContainSingle().Which.Text.Should().Be("Mar 11 Mar 11 PURCHASE");
+    }
+
+    [Fact]
     public void Extract_SplitsLinesAndNumbersAcrossPages()
     {
         var pdf = TestPdf.Build((1, 50, 700, "One"), (1, 50, 650, "Two"), (2, 50, 700, "Three"));

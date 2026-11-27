@@ -70,7 +70,7 @@ public sealed class StatementParser(
         }
         catch (StatementFormatException ex)
         {
-            var where = ex.Page is { } page ? $"Page {page}" : $"Line {ex.Line}";
+            var where = $"Page {ex.Page ?? PageOf(text, ex.Line)}";
             return Result.Failure<ParsedStatement>(Error.Custom("Import.Format", $"{where}: {ex.Message}"));
         }
         catch (StatementTotalsMismatchException ex)
@@ -81,7 +81,7 @@ public sealed class StatementParser(
                 "The statement layout may have changed; nothing was imported."));
         }
 
-        return Finish(statement.Rows, statement);
+        return Finish(statement.Rows, statement, r => $"Page {PageOf(text, r.LineNumber)}");
     }
 
     private Result<ParsedStatement> ParseCsv(byte[] bytes)
@@ -118,7 +118,7 @@ public sealed class StatementParser(
                 Error.Custom("Import.Format", $"Row {ex.Line}: {ex.Message}"));
         }
 
-        return Finish(parsed, new ParsedStatement(reader.Institution, parsed));
+        return Finish(parsed, new ParsedStatement(reader.Institution, parsed), r => $"Row {r.LineNumber}");
     }
 
     // Readers normalize to positive amounts with a direction; anything else is a reader bug that
@@ -130,7 +130,10 @@ public sealed class StatementParser(
             throw new StatementFormatException(nonPositive.LineNumber, "Amount must be positive.");
     }
 
-    private static Result<ParsedStatement> Finish(IReadOnlyList<ParsedStatementRow> rows, ParsedStatement statement)
+    private static int PageOf(PdfText text, int lineNumber) =>
+        text.Lines.FirstOrDefault(l => l.LineNumber == lineNumber)?.Page ?? 1;
+
+    private static Result<ParsedStatement> Finish(IReadOnlyList<ParsedStatementRow> rows, ParsedStatement statement, Func<ParsedStatementRow, string> where)
     {
         if (rows.Count == 0)
             return Result.Failure<ParsedStatement>(
@@ -140,7 +143,7 @@ public sealed class StatementParser(
             !string.Equals(r.Currency, Money.DefaultCurrency, StringComparison.OrdinalIgnoreCase));
         if (nonCad is not null)
             return Result.Failure<ParsedStatement>(
-                Error.Custom("Import.Currency", $"Row {nonCad.LineNumber}: only CAD is supported."));
+                Error.Custom("Import.Currency", $"{where(nonCad)}: only CAD is supported."));
 
         return Result.Success(statement);
     }

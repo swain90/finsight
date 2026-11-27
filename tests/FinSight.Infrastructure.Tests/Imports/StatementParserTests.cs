@@ -235,6 +235,31 @@ public class StatementParserTests
         result.Error.Description.Should().Be("Page 2: Unreadable date.");
     }
 
+    private static MemoryStream TwoPagePdf() =>
+        new(TestPdf.Build((1, 50, 700, "intro"), (2, 50, 700, "FAKEPDF page two")));
+
+    private static ParsedStatementRow PageTwoRow(decimal amount, string currency) =>
+        new(2, new DateOnly(2026, 10, 3), "X", null, amount, TransactionType.Debit, currency, null,
+            TransactionKind.Regular, null, "raw");
+
+    [Fact]
+    public void Parse_PdfNonPositiveAmount_ReportsPage()
+    {
+        var result = PdfParser(new FakePdfReader(row: PageTwoRow(0m, "CAD"))).Parse(TwoPagePdf(), "s.pdf");
+
+        result.Error.Code.Should().Be("Import.Format");
+        result.Error.Description.Should().Be("Page 2: Amount must be positive.");
+    }
+
+    [Fact]
+    public void Parse_PdfNonCadRow_ReportsPage()
+    {
+        var result = PdfParser(new FakePdfReader(row: PageTwoRow(5m, "USD"))).Parse(TwoPagePdf(), "s.pdf");
+
+        result.Error.Code.Should().Be("Import.Currency");
+        result.Error.Description.Should().Be("Page 2: only CAD is supported.");
+    }
+
     private sealed class NonSeekableStream(byte[] bytes) : MemoryStream(bytes)
     {
         public override bool CanSeek => false;
