@@ -79,7 +79,7 @@ public sealed class ImportsEndpointTests(FinSightWebApplicationFactory factory)
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         (await ReadJsonAsync(response)).GetProperty("detail").GetString().Should().Be(
-            "Unrecognized file. Expected a CSV export from CIBC, TD, MBNA, RBC or Wealthsimple.");
+            "Unrecognized file. Expected a CSV export from CIBC, TD, MBNA, RBC or Wealthsimple, or a CIBC credit card PDF statement.");
     }
 
     [Fact]

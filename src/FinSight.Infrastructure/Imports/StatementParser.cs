@@ -6,22 +6,90 @@ using FinSight.Application.Common.Exceptions;
 using FinSight.Application.Common.Interfaces;
 using FinSight.Domain.Common;
 using FinSight.Domain.ValueObjects;
+using FinSight.Infrastructure.Imports.Pdf;
 
 namespace FinSight.Infrastructure.Imports;
 
-public sealed class StatementParser(IEnumerable<IStatementReader> readers) : IStatementParser
+public sealed class StatementParser(
+    IEnumerable<IStatementReader> readers,
+    IEnumerable<IPdfStatementReader> pdfReaders) : IStatementParser
 {
     private const string UnknownFileMessage =
-        "Unrecognized file. Expected a CSV export from CIBC, TD, MBNA, RBC or Wealthsimple.";
+        "Unrecognized file. Expected a CSV export from CIBC, TD, MBNA, RBC or Wealthsimple, or a CIBC credit card PDF statement.";
+
+    private const string MismatchMessage = "The file's contents don't match its .pdf/.csv extension.";
+
+    private const string UnreadablePdfMessage =
+        "The PDF could not be read. Download the statement again from CIBC and retry.";
 
     private const int SniffRowCount = 5;
 
-    public Result<ParsedStatement> Parse(Stream csv)
+    private static readonly byte[] PdfMagic = "%PDF-"u8.ToArray();
+
+    public Result<ParsedStatement> Parse(Stream content, string fileName)
+    {
+        // The upload stream may be non-seekable and is capped at 5 MB by the validator.
+        using var buffer = new MemoryStream();
+        content.CopyTo(buffer);
+        var bytes = buffer.ToArray();
+
+        var isPdf = bytes.AsSpan().StartsWith(PdfMagic);
+        var extension = Path.GetExtension(fileName ?? string.Empty);
+        var mismatch = (isPdf && extension.Equals(".csv", StringComparison.OrdinalIgnoreCase))
+            || (!isPdf && extension.Equals(".pdf", StringComparison.OrdinalIgnoreCase));
+        if (mismatch)
+            return Result.Failure<ParsedStatement>(Error.Custom("Import.FileMismatch", MismatchMessage));
+
+        return isPdf ? ParsePdf(bytes) : ParseCsv(bytes);
+    }
+
+    private Result<ParsedStatement> ParsePdf(byte[] bytes)
+    {
+        PdfText text;
+        try
+        {
+            text = PdfTextExtractor.Extract(bytes);
+        }
+        catch (PdfUnreadableException)
+        {
+            return Result.Failure<ParsedStatement>(Error.Custom("Import.PdfUnreadable", UnreadablePdfMessage));
+        }
+
+        var matches = text.Lines.Count == 0
+            ? []
+            : pdfReaders.Where(r => r.CanRead(text)).ToList();
+        if (matches.Count != 1)
+            return Result.Failure<ParsedStatement>(Error.Custom("Import.UnknownFormat", UnknownFileMessage));
+
+        var reader = matches[0];
+        ParsedStatement statement;
+        try
+        {
+            statement = reader.Read(text);
+            RequirePositive(statement.Rows);
+        }
+        catch (StatementFormatException ex)
+        {
+            var where = ex.Page is { } page ? $"Page {page}" : $"Line {ex.Line}";
+            return Result.Failure<ParsedStatement>(Error.Custom("Import.Format", $"{where}: {ex.Message}"));
+        }
+        catch (StatementTotalsMismatchException ex)
+        {
+            var off = Math.Abs(ex.Difference).ToString("0.00", CultureInfo.InvariantCulture);
+            return Result.Failure<ParsedStatement>(Error.Custom("Import.TotalsMismatch",
+                $"This CIBC statement's transactions don't add up to its totals (off by ${off}). " +
+                "The statement layout may have changed; nothing was imported."));
+        }
+
+        return Finish(statement.Rows, statement);
+    }
+
+    private Result<ParsedStatement> ParseCsv(byte[] bytes)
     {
         List<CsvRow> rows;
         try
         {
-            rows = ReadRows(csv);
+            rows = ReadRows(new MemoryStream(bytes));
         }
         catch (CsvHelperException ex)
         {
@@ -42,12 +110,7 @@ public sealed class StatementParser(IEnumerable<IStatementReader> readers) : ISt
         try
         {
             parsed = reader.Read(rows).ToList();
-
-            // Readers normalize to positive amounts with a direction; anything else is a reader bug that
-            // would silently flip or zero a row, so it fails the upload like any other format error.
-            var nonPositive = parsed.FirstOrDefault(r => r.Amount <= 0);
-            if (nonPositive is not null)
-                throw new StatementFormatException(nonPositive.LineNumber, "Amount must be positive.");
+            RequirePositive(parsed);
         }
         catch (StatementFormatException ex)
         {
@@ -55,17 +118,31 @@ public sealed class StatementParser(IEnumerable<IStatementReader> readers) : ISt
                 Error.Custom("Import.Format", $"Row {ex.Line}: {ex.Message}"));
         }
 
-        if (parsed.Count == 0)
+        return Finish(parsed, new ParsedStatement(reader.Institution, parsed));
+    }
+
+    // Readers normalize to positive amounts with a direction; anything else is a reader bug that
+    // would silently flip or zero a row, so it fails the upload like any other format error.
+    private static void RequirePositive(IReadOnlyList<ParsedStatementRow> rows)
+    {
+        var nonPositive = rows.FirstOrDefault(r => r.Amount <= 0);
+        if (nonPositive is not null)
+            throw new StatementFormatException(nonPositive.LineNumber, "Amount must be positive.");
+    }
+
+    private static Result<ParsedStatement> Finish(IReadOnlyList<ParsedStatementRow> rows, ParsedStatement statement)
+    {
+        if (rows.Count == 0)
             return Result.Failure<ParsedStatement>(
                 Error.Custom("Import.Empty", "The file contains no transactions."));
 
-        var nonCad = parsed.FirstOrDefault(r =>
+        var nonCad = rows.FirstOrDefault(r =>
             !string.Equals(r.Currency, Money.DefaultCurrency, StringComparison.OrdinalIgnoreCase));
         if (nonCad is not null)
             return Result.Failure<ParsedStatement>(
                 Error.Custom("Import.Currency", $"Row {nonCad.LineNumber}: only CAD is supported."));
 
-        return Result.Success(new ParsedStatement(reader.Institution, parsed));
+        return Result.Success(statement);
     }
 
     private static List<CsvRow> ReadRows(Stream csv)

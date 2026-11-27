@@ -5,10 +5,22 @@ namespace FinSight.Application.Common.Interfaces;
 
 public interface IStatementParser
 {
-    Result<ParsedStatement> Parse(Stream csv);
+    /// <summary>Parses a CSV or PDF statement; the format is decided by content, <paramref name="fileName"/> only cross-checks it.</summary>
+    Result<ParsedStatement> Parse(Stream content, string fileName);
 }
 
-public sealed record ParsedStatement(Institution Institution, IReadOnlyList<ParsedStatementRow> Rows);
+public sealed record ParsedStatement(
+    Institution Institution,
+    IReadOnlyList<ParsedStatementRow> Rows,
+    StatementSummary? Summary = null);
+
+/// <summary>Statement-level figures a PDF reader can read off the page (CSV exports carry none).</summary>
+public sealed record StatementSummary(
+    DateOnly PeriodStart,
+    DateOnly PeriodEnd,
+    decimal OpeningBalance,
+    decimal ClosingBalance,
+    string? ExternalAccountRef);
 
 /// <summary>
 /// One parsed statement row. <paramref name="Amount"/> is always positive; money leaving, or a

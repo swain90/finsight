@@ -50,7 +50,7 @@ public class CreateImportCommandHandlerTests : HandlerTestBase
 
     private void Setup(Institution inst, IReadOnlyList<ParsedStatementRow> rows, params Account[] accounts)
     {
-        _parser.Parse(Arg.Any<Stream>()).Returns(Result.Success(new ParsedStatement(inst, rows)));
+        _parser.Parse(Arg.Any<Stream>(), Arg.Any<string>()).Returns(Result.Success(new ParsedStatement(inst, rows)));
         _accounts.GetByUserIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(accounts.ToList());
     }
 
@@ -161,7 +161,7 @@ public class CreateImportCommandHandlerTests : HandlerTestBase
     public async Task Handle_ParserFailure_ReturnsFailureAndSavesNothing()
     {
         var err = Error.Custom("Import.Format", "Unrecognized file.");
-        _parser.Parse(Arg.Any<Stream>()).Returns(Result.Failure<ParsedStatement>(err));
+        _parser.Parse(Arg.Any<Stream>(), Arg.Any<string>()).Returns(Result.Failure<ParsedStatement>(err));
 
         var result = await _handler.Handle(Cmd(), default);
 

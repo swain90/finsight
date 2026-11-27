@@ -17,8 +17,12 @@ public class CreateImportCommandValidatorTests
         var result = _validator.Validate(Cmd("statement.txt", 100));
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.ErrorMessage == "Only .csv files are supported.");
+        result.Errors.Should().Contain(e => e.ErrorMessage == "Only .csv or .pdf files are supported.");
     }
+
+    [Fact]
+    public void Validate_PdfFile_Accepted() =>
+        _validator.Validate(Cmd("statement.PDF", 100)).IsValid.Should().BeTrue();
 
     [Fact]
     public void Validate_UppercaseCsvExtension_Accepted() =>

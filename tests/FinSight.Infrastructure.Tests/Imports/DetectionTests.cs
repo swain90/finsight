@@ -30,7 +30,7 @@ public class DetectionTests
     public void EachFixture_ClaimedByExactlyOneReader(string fileName)
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Imports", "Fixtures", fileName);
-        var result = new StatementParser(AllReaders).Parse(new MemoryStream(File.ReadAllBytes(path)));
+        var result = new StatementParser(AllReaders, []).Parse(new MemoryStream(File.ReadAllBytes(path)), fileName);
 
         result.IsSuccess.Should().BeTrue(because: "exactly one reader must claim the file: {0}", result.IsFailure ? result.Error.Description : "");
     }

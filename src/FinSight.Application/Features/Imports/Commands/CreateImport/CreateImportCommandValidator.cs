@@ -9,8 +9,9 @@ public sealed class CreateImportCommandValidator : AbstractValidator<CreateImpor
     public CreateImportCommandValidator()
     {
         RuleFor(x => x.FileName)
-            .Must(n => n is not null && n.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Only .csv files are supported.");
+            .Must(n => n is not null && (n.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
+                || n.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)))
+            .WithMessage("Only .csv or .pdf files are supported.");
         RuleFor(x => x.Length)
             .Must(l => l > 0 && l <= MaxLength)
             .WithMessage("File must be 5 MB or smaller.");

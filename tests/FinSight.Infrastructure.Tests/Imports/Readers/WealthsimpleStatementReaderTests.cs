@@ -16,7 +16,7 @@ public class WealthsimpleStatementReaderTests
     private static string Fixture(string name) =>
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Imports", "Fixtures", name));
 
-    private static StatementParser Parser() => new([Reader]);
+    private static StatementParser Parser() => new([Reader], []);
 
     private static CsvRow Row(int line, params string[] fields) =>
         new(line, fields, string.Join(",", fields.Select(f => $"\"{f}\"")));
@@ -30,7 +30,7 @@ public class WealthsimpleStatementReaderTests
     [Fact]
     public void Read_CashFixture_ParsesExactRows()
     {
-        var result = Parser().Parse(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(Fixture("wealthsimple-cash.csv"))));
+        var result = Parser().Parse(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(Fixture("wealthsimple-cash.csv"))), "statement.csv");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Institution.Should().Be(Institution.Wealthsimple);
@@ -91,7 +91,7 @@ public class WealthsimpleStatementReaderTests
     [Fact]
     public void Read_ZeroAmountSecurityEvent_Skipped()
     {
-        var result = Parser().Parse(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(Fixture("wealthsimple-tfsa.csv"))));
+        var result = Parser().Parse(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(Fixture("wealthsimple-tfsa.csv"))), "statement.csv");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Rows.Should().HaveCount(4);

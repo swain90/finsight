@@ -26,7 +26,7 @@ public sealed class CreateImportCommandHandler(
             return Result.Failure<ImportBatchDto>(Error.Unauthorized);
         var userId = currentUserService.UserId.Value;
 
-        var parsedResult = parser.Parse(request.Content);
+        var parsedResult = parser.Parse(request.Content, request.FileName);
         if (parsedResult.IsFailure)
             return Result.Failure<ImportBatchDto>(parsedResult.Error);
         var parsed = parsedResult.Value;
