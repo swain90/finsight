@@ -11,6 +11,7 @@ public class ImportBatchConfiguration : IEntityTypeConfiguration<ImportBatch>
         builder.HasKey(b => b.Id);
         builder.Property(b => b.FileName).IsRequired().HasMaxLength(255);
         builder.Property(b => b.ReconciliationWarning).HasMaxLength(2000);
+        builder.Property(b => b.StatementOpeningBalance).HasPrecision(18, 2);
         builder.Property(b => b.StatementClosingBalance).HasPrecision(18, 2);
         builder.Property(b => b.Institution).HasConversion<string>().HasMaxLength(30);
         builder.Property(b => b.Status).HasConversion<string>().HasMaxLength(30);

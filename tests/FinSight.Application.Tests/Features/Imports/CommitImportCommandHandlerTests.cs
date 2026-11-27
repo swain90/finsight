@@ -151,6 +151,44 @@ public class CommitImportCommandHandlerTests
     }
 
     [Fact]
+    public async Task Commit_PdfStatement_RowDatedBeforePreviousSnapshot_NoWarning()
+    {
+        var acct = Acct("Visa", AccountType.CreditCard);
+        var early = Row(2, "BOOKS", 20m, day: 1);
+        var later = Row(3, "GAS", 30m, day: 15);
+        early.AssignAccount(acct.Id, "fp1", false);
+        later.AssignAccount(acct.Id, "fp2", false);
+        var b = Batch([acct], early, later);
+        b.ApplyStatementSummary(new DateOnly(2026, 1, 3), new DateOnly(2026, 1, 31), 100m, 150m);
+        var previous = acct.RecordBalanceSnapshot(new DateOnly(2026, 1, 2), new Money(100m, "CAD"), null);
+        _snapshots.GetLatestAsync(acct.Id, new DateOnly(2026, 1, 30), Arg.Any<CancellationToken>()).Returns(previous);
+
+        await _handler.Handle(
+            new CommitImportCommand(b.Id, [new ClosingBalanceInput(acct.Id, 150m, new DateOnly(2026, 1, 31))]), default);
+
+        b.ReconciliationWarning.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Commit_PdfStatement_OpeningDiffersFromRecord_StoresContinuityWarning()
+    {
+        var acct = Acct("Visa", AccountType.CreditCard);
+        var row = Row(2, "GAS", 30m, day: 15);
+        row.AssignAccount(acct.Id, "fp1", false);
+        var b = Batch([acct], row);
+        b.ApplyStatementSummary(new DateOnly(2026, 1, 3), new DateOnly(2026, 1, 31), 100m, 130m);
+        var previous = acct.RecordBalanceSnapshot(new DateOnly(2025, 12, 2), new Money(60m, "CAD"), null);
+        _snapshots.GetLatestAsync(acct.Id, new DateOnly(2026, 1, 30), Arg.Any<CancellationToken>()).Returns(previous);
+
+        await _handler.Handle(
+            new CommitImportCommand(b.Id, [new ClosingBalanceInput(acct.Id, 130m, new DateOnly(2026, 1, 31))]), default);
+
+        b.ReconciliationWarning.Should().Be(
+            "Visa: Balance on record $60.00 differs from the statement's opening balance $100.00. " +
+            "A statement in between may be missing.");
+    }
+
+    [Fact]
     public async Task Commit_FirstImport_SkippedReconciliationHasNoWarning()
     {
         var acct = Acct();

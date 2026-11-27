@@ -77,17 +77,28 @@ public sealed class CommitImportCommandHandler(
         }
 
         // Reconcile against the latest snapshot dated before this statement's closing date (R25), read
-        // BEFORE this import's snapshots are recorded; only rows dated after that snapshot are summed.
+        // BEFORE this import's snapshots are recorded. A single-account PDF statement checks its own equation
+        // (opening + rows = closing) plus continuity with that snapshot; anything else sums only the rows dated
+        // after the snapshot.
         var warnings = new List<string>();
+        var statementAccount = ReconciliationCalculator.StatementAccount(batch);
         foreach (var input in request.Balances)
         {
             var account = accountsById[input.AccountId];
             var previous = await ReconciliationCalculator.PreviousSnapshotAsync(
                 snapshotRepository, account.Id, input.AsOf, cancellationToken);
-            var rows = ReconciliationCalculator.RowsAfter(included, account.Id, previous);
-            var check = ReconciliationCalculator.Check(account.Type, previous?.Balance.Amount, rows, input.ClosingBalance);
-            if (!check.Skipped && !check.IsBalanced)
-                warnings.Add(string.Create(CultureInfo.GetCultureInfo("en-CA"), $"{account.Name}: off by {check.Difference:C}"));
+            var check = statementAccount == account.Id
+                ? ReconciliationCalculator.CheckStatement(account.Type, batch.StatementOpeningBalance!.Value,
+                    previous?.Balance.Amount, ReconciliationCalculator.StatementRows(batch.Rows, account.Id),
+                    input.ClosingBalance)
+                : ReconciliationCalculator.Check(account.Type, previous?.Balance.Amount,
+                    ReconciliationCalculator.RowsAfter(included, account.Id, previous), input.ClosingBalance);
+            if (check.Skipped || check.IsBalanced)
+                continue;
+            if (check.Difference is { } difference && Math.Abs(difference) >= ReconciliationCalculator.Tolerance)
+                warnings.Add(string.Create(CultureInfo.GetCultureInfo("en-CA"), $"{account.Name}: off by {difference:C}"));
+            if (check.Warning is { } warning)
+                warnings.Add($"{account.Name}: {warning}");
         }
 
         var transactions = new List<Transaction>(included.Count);

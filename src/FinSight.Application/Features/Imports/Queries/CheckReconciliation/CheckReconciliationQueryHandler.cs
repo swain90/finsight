@@ -31,6 +31,13 @@ public sealed class CheckReconciliationQueryHandler(
         var closingAsOf = request.AsOf ?? batch.PeriodEnd;
         var snapshot = await ReconciliationCalculator.PreviousSnapshotAsync(
             snapshotRepository, account.Id, closingAsOf, cancellationToken);
+        if (ReconciliationCalculator.StatementAccount(batch) == account.Id)
+        {
+            return Result.Success(ReconciliationCalculator.CheckStatement(
+                account.Type, batch.StatementOpeningBalance!.Value, snapshot?.Balance.Amount,
+                ReconciliationCalculator.StatementRows(batch.Rows, account.Id), request.ClosingBalance));
+        }
+
         var rows = ReconciliationCalculator.RowsAfter(batch.Rows, account.Id, snapshot);
 
         return Result.Success(ReconciliationCalculator.Check(

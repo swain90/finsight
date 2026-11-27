@@ -17,6 +17,14 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                 precision: 18,
                 scale: 2,
                 nullable: true);
+
+            migrationBuilder.AddColumn<decimal>(
+                name: "StatementOpeningBalance",
+                table: "ImportBatches",
+                type: "numeric(18,2)",
+                precision: 18,
+                scale: 2,
+                nullable: true);
         }
 
         /// <inheritdoc />
@@ -24,6 +32,10 @@ namespace FinSight.Infrastructure.Persistence.Migrations
         {
             migrationBuilder.DropColumn(
                 name: "StatementClosingBalance",
+                table: "ImportBatches");
+
+            migrationBuilder.DropColumn(
+                name: "StatementOpeningBalance",
                 table: "ImportBatches");
         }
     }

@@ -99,7 +99,8 @@ public sealed class CreateImportCommandHandler(
         }
 
         if (parsed.Summary is { } summary)
-            batch.ApplyStatementSummary(summary.PeriodStart, summary.PeriodEnd, summary.ClosingBalance);
+            batch.ApplyStatementSummary(
+                summary.PeriodStart, summary.PeriodEnd, summary.OpeningBalance, summary.ClosingBalance);
 
         await batchRepository.AddAsync(batch, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
