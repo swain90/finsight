@@ -42,9 +42,9 @@ public class CibcPdfEndToEndTests
         ];
         Row[] charges =
         [
-            new("Sep 29", "Oct 01", "CORNER CAFE TORONTO ON", "Restaurants", "18.40"),
-            new("Oct 02", "Oct 03", "MAPLE GROCER TORONTO ON", "Retail and Grocery", "96.15"),
-            new("Oct 09", "Oct 10", "MAPLE GROCER TORONTO ON", "Retail and Grocery", "-6.15"),
+            new("Sep 29", "Oct 01", "CORNER CAFE SAMPLETOWN ZZ", "Restaurants", "18.40"),
+            new("Oct 02", "Oct 03", "MAPLE GROCER SAMPLETOWN ZZ", "Retail and Grocery", "96.15"),
+            new("Oct 09", "Oct 10", "MAPLE GROCER SAMPLETOWN ZZ", "Retail and Grocery", "-6.15"),
         ];
 
         var items = new List<(int, double, double, string)>
@@ -59,7 +59,7 @@ public class CibcPdfEndToEndTests
             (1, 337.4, 483.4, "$208.40"),
             (1, 133.2, 446.4, "1"),
             // Page 2: transactions.
-            (2, 36.7, 746.0, "Transactions from September 28 to October 27, 2026"),
+            (2, 36.7, 746.0, "Transactions from September 30 to October 29, 2026"),
             (2, 36.7, 727.7, "Your payments"),
             (2, 36.7, 714.8, "Trans"),
             (2, 78.7, 714.8, "Post"),
@@ -94,10 +94,10 @@ public class CibcPdfEndToEndTests
         result.Value.Rows.Should().HaveCount(5);
         result.Value.Rows.Select(r => r.Description).Should().Equal(
             "PAYMENT THANK YOU/PAIEMENT MERCI", "PAYMENT THANK YOU/PAIEMENT MERCI",
-            "CORNER CAFE TORONTO ON", "MAPLE GROCER TORONTO ON", "MAPLE GROCER TORONTO ON");
+            "CORNER CAFE SAMPLETOWN ZZ", "MAPLE GROCER SAMPLETOWN ZZ", "MAPLE GROCER SAMPLETOWN ZZ");
         result.Value.Rows[2].CategoryHint.Should().Be(TransactionCategory.DiningOut);
         result.Value.Rows[4].Type.Should().Be(TransactionType.Credit);
         result.Value.Summary.Should().Be(new Application.Common.Interfaces.StatementSummary(
-            new DateOnly(2026, 9, 28), new DateOnly(2026, 10, 27), 500.00m, 208.40m, "1234"));
+            new DateOnly(2026, 9, 30), new DateOnly(2026, 10, 29), 500.00m, 208.40m, "1234"));
     }
 }

@@ -228,7 +228,7 @@ public sealed partial class CibcCreditCardPdfReader : IPdfStatementReader
         line.Words.LastOrDefault(w =>
             AmountWord().IsMatch(w.Text)
             && (w.Left >= columns.Amount - AmountColumnSlack
-                // Interest reversals ("-2.07***") print left of the amount column, inside the rate column.
+                // Interest reversals ("-1.25***") print left of the amount column, inside the rate column.
                 || (w.Text.EndsWith("***", StringComparison.Ordinal) && w.Left >= columns.DescriptionEnd)));
 
     /// <summary>"Mmm dd" pairs left of the Description column (and of the cash-back marker).</summary>
@@ -288,7 +288,7 @@ public sealed partial class CibcCreditCardPdfReader : IPdfStatementReader
             amountWord.Text.EndsWith("***", StringComparison.Ordinal));
     }
 
-    /// <summary>A detail line (e.g. "120.91 USD @ 1.405839054**") directly beneath its row, inside the description column.</summary>
+    /// <summary>A detail line (e.g. "50.00 USD @ 1.406000000**") directly beneath its row, inside the description column.</summary>
     private static bool IsContinuation(PdfLine line, PdfLine previous, Columns columns) =>
         line.Page == previous.Page
         && line.LineNumber == previous.LineNumber + 1

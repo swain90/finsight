@@ -18,7 +18,7 @@ public class CibcCreditCardPdfReaderTests
 
     private const string Card = "4500 XXXX XXXX 1234";
     private const string PaymentText = "PAYMENT THANK YOU/PAIEMENT MERCI";
-    private const string Period = "September 28 to October 27, 2026";
+    private const string Period = "September 30 to October 29, 2026";
 
     /// <summary>Builds <see cref="PdfText"/> line by line; odd-numbered pages after page 1 shift every column right by 36pt.</summary>
     private sealed class Doc
@@ -144,10 +144,10 @@ public class CibcCreditCardPdfReaderTests
             .TotalInterest(totalInterest)
             .ChargesHeader()
             .CardNumber()
-            .Charge("Oct 01", "Oct 02", "MAPLE GROCER TORONTO ON", "Retail and Grocery", "45.67")
-            .Charge("Oct 03", "Oct 04", "THE BISTRO TORONTO ON", "Restaurants", "32.10")
-            .Charge("Oct 05", "Oct 06", "OAK FURNITURE CO TORONTO ON", "Home and Office Improvement", "1,050.00")
-            .Charge("Oct 10", "Oct 11", "MAPLE GROCER TORONTO ON", "Retail and Grocery", "-5.67")
+            .Charge("Oct 01", "Oct 02", "MAPLE GROCER SAMPLETOWN ZZ", "Retail and Grocery", "45.67")
+            .Charge("Oct 03", "Oct 04", "THE BISTRO SAMPLETOWN ZZ", "Restaurants", "32.10")
+            .Charge("Oct 05", "Oct 06", "ACME FURNITURE CO SAMPLETOWN ZZ", "Home and Office Improvement", "1,050.00")
+            .Charge("Oct 10", "Oct 11", "MAPLE GROCER SAMPLETOWN ZZ", "Retail and Grocery", "-5.67")
             .TotalFor(totalFor);
 
     private static ParsedStatementRow Row(int line, DateOnly date, string description, decimal amount, TransactionType type,
@@ -163,7 +163,7 @@ public class CibcCreditCardPdfReaderTests
 
         statement.Institution.Should().Be(Institution.Cibc);
         statement.Summary.Should().Be(new StatementSummary(
-            new DateOnly(2026, 9, 28), new DateOnly(2026, 10, 27), 1000.00m, 1626.20m, "1234"));
+            new DateOnly(2026, 9, 30), new DateOnly(2026, 10, 29), 1000.00m, 1626.20m, "1234"));
         statement.Rows.Should().Equal(
             Row(doc.LineOf("Oct 07"), new(2026, 10, 7), PaymentText, 300.00m, TransactionType.Credit,
                 TransactionKind.PendingTransfer, TransactionCategory.DebtPayments, $"Oct 07 Oct 08 {PaymentText} 300.00"),
@@ -171,14 +171,14 @@ public class CibcCreditCardPdfReaderTests
                 TransactionKind.PendingTransfer, TransactionCategory.DebtPayments, $"Oct 15 Oct 16 {PaymentText} 200.00"),
             Row(doc.LineOf("PURCHASES"), new(2026, 10, 27), "PURCHASES", 4.10m, TransactionType.Debit,
                 TransactionKind.Regular, TransactionCategory.BankFees, "Oct 27 Oct 27 PURCHASES 19.99% 4.10"),
-            Row(doc.LineOf("Oct 01"), new(2026, 10, 1), "MAPLE GROCER TORONTO ON", 45.67m, TransactionType.Debit,
-                TransactionKind.Regular, null, "Oct 01 Oct 02 MAPLE GROCER TORONTO ON Retail and Grocery 45.67"),
-            Row(doc.LineOf("THE BISTRO"), new(2026, 10, 3), "THE BISTRO TORONTO ON", 32.10m, TransactionType.Debit,
-                TransactionKind.Regular, TransactionCategory.DiningOut, "Oct 03 Oct 04 THE BISTRO TORONTO ON Restaurants 32.10"),
-            Row(doc.LineOf("OAK FURNITURE"), new(2026, 10, 5), "OAK FURNITURE CO TORONTO ON", 1050.00m, TransactionType.Debit,
-                TransactionKind.Regular, null, "Oct 05 Oct 06 OAK FURNITURE CO TORONTO ON Home and Office Improvement 1,050.00"),
-            Row(doc.LineOf("Oct 10"), new(2026, 10, 10), "MAPLE GROCER TORONTO ON", 5.67m, TransactionType.Credit,
-                TransactionKind.Regular, null, "Oct 10 Oct 11 MAPLE GROCER TORONTO ON Retail and Grocery -5.67"));
+            Row(doc.LineOf("Oct 01"), new(2026, 10, 1), "MAPLE GROCER SAMPLETOWN ZZ", 45.67m, TransactionType.Debit,
+                TransactionKind.Regular, null, "Oct 01 Oct 02 MAPLE GROCER SAMPLETOWN ZZ Retail and Grocery 45.67"),
+            Row(doc.LineOf("THE BISTRO"), new(2026, 10, 3), "THE BISTRO SAMPLETOWN ZZ", 32.10m, TransactionType.Debit,
+                TransactionKind.Regular, TransactionCategory.DiningOut, "Oct 03 Oct 04 THE BISTRO SAMPLETOWN ZZ Restaurants 32.10"),
+            Row(doc.LineOf("ACME FURNITURE"), new(2026, 10, 5), "ACME FURNITURE CO SAMPLETOWN ZZ", 1050.00m, TransactionType.Debit,
+                TransactionKind.Regular, null, "Oct 05 Oct 06 ACME FURNITURE CO SAMPLETOWN ZZ Home and Office Improvement 1,050.00"),
+            Row(doc.LineOf("Oct 10"), new(2026, 10, 10), "MAPLE GROCER SAMPLETOWN ZZ", 5.67m, TransactionType.Credit,
+                TransactionKind.Regular, null, "Oct 10 Oct 11 MAPLE GROCER SAMPLETOWN ZZ Retail and Grocery -5.67"));
     }
 
     [Fact]
@@ -188,7 +188,7 @@ public class CibcCreditCardPdfReaderTests
             .Summary("$0.00", "$12.00")
             .NewPage().PeriodLine()
             .ChargesHeader().CardNumber()
-            .Charge("Oct 05", "Oct 06", "CITY TRANSIT TORONTO ON", "Transportation", "12.00")
+            .Charge("Oct 05", "Oct 06", "ACME BUSLINES SAMPLETOWN ZZ", "Transportation", "12.00")
             .TotalFor("$12.00");
 
         Reader.Read(doc.Text).Rows.Should().ContainSingle()
@@ -202,18 +202,18 @@ public class CibcCreditCardPdfReaderTests
             .Summary("$0.00", "$60.00")
             .NewPage().PeriodLine()
             .ChargesHeader().CardNumber()
-            .Charge("Oct 01", "Oct 02", "FIRST SHOP TORONTO ON", "Retail and Grocery", "10.00")
-            .Charge("Oct 02", "Oct 03", "SECOND SHOP TORONTO ON", "Retail and Grocery", "20.00")
+            .Charge("Oct 01", "Oct 02", "ALPHA STORE SAMPLETOWN ZZ", "Retail and Grocery", "10.00")
+            .Charge("Oct 02", "Oct 03", "BETA STORE SAMPLETOWN ZZ", "Retail and Grocery", "20.00")
             .PageFooter(2)
             .NewPage() // odd page: every column shifts right
-            .Line((72.7, "Prepared for: A CARDHOLDER September 28 to October 27, 2026 Account number:"), (416.4, Card))
+            .Line((72.7, "Prepared for: A CARDHOLDER September 30 to October 29, 2026 Account number:"), (416.4, Card))
             .ChargesHeader(continued: true).CardNumber()
-            .Charge("Oct 03", "Oct 04", "THIRD SHOP TORONTO ON", "Retail and Grocery", "30.00")
+            .Charge("Oct 03", "Oct 04", "GAMMA STORE SAMPLETOWN ZZ", "Retail and Grocery", "30.00")
             .TotalFor("$60.00");
 
         var rows = Reader.Read(doc.Text).Rows;
 
-        rows.Select(r => r.Description).Should().Equal("FIRST SHOP TORONTO ON", "SECOND SHOP TORONTO ON", "THIRD SHOP TORONTO ON");
+        rows.Select(r => r.Description).Should().Equal("ALPHA STORE SAMPLETOWN ZZ", "BETA STORE SAMPLETOWN ZZ", "GAMMA STORE SAMPLETOWN ZZ");
         rows.Select(r => r.Amount).Should().Equal(10.00m, 20.00m, 30.00m);
         rows[1].RawLine.Should().NotContain("Page");
         rows[2].CategoryHint.Should().BeNull();
@@ -228,10 +228,10 @@ public class CibcCreditCardPdfReaderTests
             .NewPage().PeriodLine()
             .ChargesHeader()
             .CardNumber()
-            .Charge("Oct 01", "Oct 02", "FIRST SHOP TORONTO ON", "Retail and Grocery", "10.00")
+            .Charge("Oct 01", "Oct 02", "ALPHA STORE SAMPLETOWN ZZ", "Retail and Grocery", "10.00")
             .TotalFor("$10.00")
             .CardNumber(second)
-            .Charge("Oct 02", "Oct 03", "SECOND SHOP TORONTO ON", "Retail and Grocery", "25.00")
+            .Charge("Oct 02", "Oct 03", "BETA STORE SAMPLETOWN ZZ", "Retail and Grocery", "25.00")
             .TotalFor("$25.00", "9876");
 
         Reader.Read(doc.Text).Rows.Select(r => r.Amount).Should().Equal(10.00m, 25.00m);
@@ -241,10 +241,10 @@ public class CibcCreditCardPdfReaderTests
             .NewPage().PeriodLine()
             .ChargesHeader()
             .CardNumber()
-            .Charge("Oct 01", "Oct 02", "FIRST SHOP TORONTO ON", "Retail and Grocery", "10.00")
+            .Charge("Oct 01", "Oct 02", "ALPHA STORE SAMPLETOWN ZZ", "Retail and Grocery", "10.00")
             .TotalFor("$25.00")
             .CardNumber(second)
-            .Charge("Oct 02", "Oct 03", "SECOND SHOP TORONTO ON", "Retail and Grocery", "25.00")
+            .Charge("Oct 02", "Oct 03", "BETA STORE SAMPLETOWN ZZ", "Retail and Grocery", "25.00")
             .TotalFor("$10.00", second);
 
         var act = () => Reader.Read(swapped.Text);
@@ -259,12 +259,12 @@ public class CibcCreditCardPdfReaderTests
             .Summary("$0.00", "$8.25")
             .NewPage().PeriodLine()
             .ChargesHeader().CardNumber()
-            .Charge("Oct 04", "Oct 05", "CORNER CAFE TORONTO ON", "Restaurants", "8.25", cashBack: true)
+            .Charge("Oct 04", "Oct 05", "CORNER CAFE SAMPLETOWN ZZ", "Restaurants", "8.25", cashBack: true)
             .TotalFor("$8.25");
 
         var row = Reader.Read(doc.Text).Rows.Should().ContainSingle().Subject;
 
-        row.Description.Should().Be("CORNER CAFE TORONTO ON");
+        row.Description.Should().Be("CORNER CAFE SAMPLETOWN ZZ");
         row.CategoryHint.Should().Be(TransactionCategory.DiningOut);
     }
 
@@ -275,15 +275,15 @@ public class CibcCreditCardPdfReaderTests
             .Summary("$0.00", "$70.30")
             .NewPage().PeriodLine()
             .ChargesHeader().CardNumber()
-            .Charge("Oct 11", "Oct 13", "WEB STORE SEATTLE WA", "Foreign Currency Transactions", "70.30")
+            .Charge("Oct 11", "Oct 13", "WEB STORE SAMPLEVILLE ZZ", "Foreign Currency Transactions", "70.30")
             .Gap(-2.2).Line((122.8, "50.00 USD @ 1.406000000**"))
             .TotalFor("$70.30");
 
         var row = Reader.Read(doc.Text).Rows.Should().ContainSingle().Subject;
 
-        row.Description.Should().Be("WEB STORE SEATTLE WA");
+        row.Description.Should().Be("WEB STORE SAMPLEVILLE ZZ");
         row.Amount.Should().Be(70.30m);
-        row.RawLine.Should().Be("Oct 11 Oct 13 WEB STORE SEATTLE WA Foreign Currency Transactions 70.30 50.00 USD @ 1.406000000**");
+        row.RawLine.Should().Be("Oct 11 Oct 13 WEB STORE SAMPLEVILLE ZZ Foreign Currency Transactions 70.30 50.00 USD @ 1.406000000**");
     }
 
     [Fact]
@@ -309,23 +309,23 @@ public class CibcCreditCardPdfReaderTests
     }
 
     [Theory]
-    [InlineData("December 28, 2025 to January 27, 2026")]
-    [InlineData("December 28 , 2025 to January 27, 2026")]
+    [InlineData("December 30, 2025 to January 29, 2026")]
+    [InlineData("December 30 , 2025 to January 29, 2026")]
     public void Read_DecJanPeriod_AssignsPreviousYearToDecember(string period)
     {
         var doc = new Doc()
             .Summary("$0.00", "$30.00", period)
             .NewPage().PeriodLine(period)
             .ChargesHeader().CardNumber()
-            .Charge("Dec 24", "Dec 28", "HOLIDAY SHOP TORONTO ON", "Retail and Grocery", "10.00")
-            .Charge("Jan 05", "Jan 06", "NEW YEAR SHOP TORONTO ON", "Retail and Grocery", "20.00")
+            .Charge("Dec 24", "Dec 28", "HOLIDAY STORE SAMPLETOWN ZZ", "Retail and Grocery", "10.00")
+            .Charge("Jan 05", "Jan 06", "NEW YEAR STORE SAMPLETOWN ZZ", "Retail and Grocery", "20.00")
             .TotalFor("$30.00");
 
         var statement = Reader.Read(doc.Text);
 
         statement.Rows.Select(r => r.Date).Should().Equal(new DateOnly(2025, 12, 24), new DateOnly(2026, 1, 5));
-        statement.Summary!.PeriodStart.Should().Be(new DateOnly(2025, 12, 28));
-        statement.Summary.PeriodEnd.Should().Be(new DateOnly(2026, 1, 27));
+        statement.Summary!.PeriodStart.Should().Be(new DateOnly(2025, 12, 30));
+        statement.Summary.PeriodEnd.Should().Be(new DateOnly(2026, 1, 29));
     }
 
     [Fact]
@@ -335,13 +335,13 @@ public class CibcCreditCardPdfReaderTests
             .Summary("$0.00", "$9.99")
             .NewPage().PeriodLine()
             .ChargesHeader().CardNumber()
-            .Line((36.7, "Oct 09"), (122.8, "STREAMING SVC TORONTO ON"), (341.5, "Hotel, Entertainment and Recreation"), (519.6, "9.99"))
+            .Line((36.7, "Oct 09"), (122.8, "STREAMING SVC SAMPLETOWN ZZ"), (341.5, "Hotel, Entertainment and Recreation"), (519.6, "9.99"))
             .TotalFor("$9.99");
 
         var row = Reader.Read(doc.Text).Rows.Should().ContainSingle().Subject;
 
         row.Date.Should().Be(new DateOnly(2026, 10, 9));
-        row.Description.Should().Be("STREAMING SVC TORONTO ON");
+        row.Description.Should().Be("STREAMING SVC SAMPLETOWN ZZ");
     }
 
     [Fact]
@@ -354,7 +354,7 @@ public class CibcCreditCardPdfReaderTests
             .Payment("Oct 07", "Oct 08", "200.00")
             .TotalPayments("$200.00")
             .ChargesHeader().CardNumber()
-            .Charge("Oct 01", "Oct 02", "FIRST SHOP TORONTO ON", "Retail and Grocery", "125.00")
+            .Charge("Oct 01", "Oct 02", "ALPHA STORE SAMPLETOWN ZZ", "Retail and Grocery", "125.00")
             .TotalFor("$125.00");
 
         Reader.Read(doc.Text).Rows.Should().HaveCount(2);
@@ -367,7 +367,7 @@ public class CibcCreditCardPdfReaderTests
             .Summary("$0.00", "$10.00")
             .NewPage().PeriodLine()
             .ChargesHeader().CardNumber()
-            .Charge("Oct 01", "Oct 02", "FIRST SHOP TORONTO ON", "Retail and Grocery", "10.00")
+            .Charge("Oct 01", "Oct 02", "ALPHA STORE SAMPLETOWN ZZ", "Retail and Grocery", "10.00")
             .Gap(30).Line((206.4, "2"))
             .Gap(30).Line((481.7, "Page 2 of 5"))
             .NewPage().Line((36.7, "Your new charges and credits (continued)"))
@@ -376,7 +376,7 @@ public class CibcCreditCardPdfReaderTests
 
         var row = Reader.Read(doc.Text).Rows.Should().ContainSingle().Subject;
 
-        row.RawLine.Should().Be("Oct 01 Oct 02 FIRST SHOP TORONTO ON Retail and Grocery 10.00");
+        row.RawLine.Should().Be("Oct 01 Oct 02 ALPHA STORE SAMPLETOWN ZZ Retail and Grocery 10.00");
     }
 
     [Fact]
@@ -419,7 +419,7 @@ public class CibcCreditCardPdfReaderTests
             .Line((418.3, $"Account number {Card}"))
             .NewPage().PeriodLine()
             .ChargesHeader().CardNumber()
-            .Charge("Oct 01", "Oct 02", "FIRST SHOP TORONTO ON", "Retail and Grocery", "10.00")
+            .Charge("Oct 01", "Oct 02", "ALPHA STORE SAMPLETOWN ZZ", "Retail and Grocery", "10.00")
             .TotalFor("$10.00");
 
         var act = () => Reader.Read(doc.Text);
