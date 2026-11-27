@@ -279,9 +279,9 @@ public sealed class StatementTotalsMismatchException(decimal difference) : Excep
   - `Previous balance $1,500.00`
   - `Total balance = $2,500.00`
   - `Account number 4500 XXXX XXXX 1234`
-- Period line: `Transactions from September 28 to October 27, 2026`. It can also read
-  `Transactions from December 28, 2025 to January 27, 2026`, and the samples also contain the variant
-  `December 28 , 2025`, with a space before the comma.
+- Period line: `Transactions from September 30 to October 29, 2026`. It can also read
+  `Transactions from December 30, 2025 to January 29, 2026`, and the samples also contain the variant
+  `December 30 , 2025`, with a space before the comma.
 - Row decorations:
   - A leading cash-back marker (`Ý` in pdftotext output; PdfPig may decode it as another single non-ASCII glyph) is
     stripped.
@@ -342,8 +342,8 @@ public sealed class StatementTotalsMismatchException(decimal difference) : Excep
   - `Read_CashBackMarker_StrippedFromDescription`.
   - `Read_ForeignCurrencyLine_InRawLineNotDescription`.
   - `Read_InterestReversalTripleStar_CreditExcludedFromInterestTotalIncludedInBalance`.
-  - `Read_DecJanPeriod_AssignsPreviousYearToDecember`: period `December 28, 2025 to January 27, 2026` (also with
-    `December 28 , 2025`); a `Dec 24` trans / `Dec 28` post charge becomes 2025-12-24; `Jan 05` becomes 2026-01-05.
+  - `Read_DecJanPeriod_AssignsPreviousYearToDecember`: period `December 30, 2025 to January 29, 2026` (also with
+    `December 30 , 2025`); a `Dec 27` trans / `Dec 30` post charge becomes 2025-12-27; `Jan 05` becomes 2026-01-05.
   - `Read_RowWithSingleDate_UsesThatDate`.
   - `Read_NoInterestSection_Balances`.
   - `Read_PaymentsTotalWrong_ThrowsMismatchWithDifference`. Write one each for interest, the card total and the
@@ -399,8 +399,8 @@ public sealed class StatementTotalsMismatchException(decimal difference) : Excep
   - Frontend `ImportBatch` gains `statementClosingBalance: number | null`.
 
 - [ ] **Step 1: Write the failing tests.**
-  - Domain: `ApplyStatementSummary_SetsClosingBalanceAndPeriodEnd`. Rows dated Sep 24–Oct 27 with a summary of
-    Sep 28–Oct 27 give `PeriodStart` Sep 24 and `PeriodEnd` Oct 27.
+  - Domain: `ApplyStatementSummary_SetsClosingBalanceAndPeriodEnd`. Rows dated Sep 26–Oct 29 with a summary of
+    Sep 30–Oct 29 give `PeriodStart` Sep 24 and `PeriodEnd` Oct 29.
   - Integration:
     - `UploadPdf_CibcStatement_CreatesBatchWithClosingBalance`: POST a built PDF named `statement.pdf`. Assert 200,
       institution `Cibc`, the row count, `statementClosingBalance`, and `periodEnd`. The account with

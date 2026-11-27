@@ -13,9 +13,9 @@ are the natural thing to upload. Ten 2025–2026 statements are in `samples/` (g
 All 10 sample statements came from the same generator ("Ricoh AFP2PDF"). Each one has a real text layer, so no OCR is
 needed.
 
-- **Statement period.** The period is printed as `Transactions from September 28 to October 27, 2026`. Transaction
+- **Statement period.** The period is printed as `Transactions from September 30 to October 29, 2026`. Transaction
   dates themselves carry no year (`Oct 07`). Periods can cross a year boundary:
-  `December 28, 2025 to January 27, 2026`.
+  `December 30, 2025 to January 29, 2026`.
 - **Sections.** Each section has columns for transaction date, posting date, description, a CIBC spend category (or
   an interest rate), and an amount.
 
@@ -121,7 +121,7 @@ A throwaway prototype parsed all 10 statements and checked them against the summ
 
 - **Date.** Use the transaction date, which is what the bank side of a payment shows. A date has no year, so take
   the year of `PeriodEnd`. If that would put the date after `PeriodEnd`, use the previous year instead. For example,
-  `Dec 29` on a statement ending `Jan 27, 2026` becomes 2025-12-29.
+  `Dec 29` on a statement ending `Jan 29, 2026` becomes 2025-12-29.
 - **Description.** The merchant text, with the `Ý` marker removed. The foreign-currency line is kept in `RawLine`
   only, so merchant rules and fingerprints stay clean.
 - **Amounts.** Always positive, with `Currency = "CAD"`.
