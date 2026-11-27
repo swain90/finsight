@@ -2,6 +2,7 @@ using FinSight.Application.Common.Interfaces;
 using FinSight.Domain.Common;
 using FinSight.Domain.Repositories;
 using FinSight.Infrastructure.Imports;
+using FinSight.Infrastructure.Imports.Pdf;
 using FinSight.Infrastructure.Imports.Readers;
 using FinSight.Infrastructure.Persistence;
 using FinSight.Infrastructure.Persistence.Repositories;
@@ -52,6 +53,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IStatementParser, StatementParser>();
         services.AddSingleton<IStatementReader, WealthsimpleStatementReader>();
+        services.AddSingleton<IPdfStatementReader, CibcCreditCardPdfReader>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
 
