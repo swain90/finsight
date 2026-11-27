@@ -2,6 +2,7 @@ using FinSight.Application.Common.Interfaces;
 using FinSight.Domain.Common;
 using FinSight.Domain.Repositories;
 using FinSight.Infrastructure.Imports;
+using FinSight.Infrastructure.Imports.Readers;
 using FinSight.Infrastructure.Persistence;
 using FinSight.Infrastructure.Persistence.Repositories;
 using FinSight.Infrastructure.Services;
@@ -50,6 +51,7 @@ public static class ServiceCollectionExtensions
         services.AddHttpContextAccessor();
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IStatementParser, StatementParser>();
+        services.AddSingleton<IStatementReader, WealthsimpleStatementReader>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
 

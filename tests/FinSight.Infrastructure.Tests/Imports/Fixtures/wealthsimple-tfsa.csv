@@ -1,0 +1,8 @@
+"date","transaction","description","amount","balance","currency"
+"2026-10-01","DIV","FUNDX - Sample Fund: Dividend","1.23","101.23","CAD"
+"2026-10-02","FPLINT","Stock lending interest","0.45","101.68","CAD"
+"2026-10-03","NRT","FUNDX - Sample Fund: Non-resident tax","-0.18","101.5","CAD"
+"2026-10-04","BUY","FUNDX - Sample Fund: Bought 2.0000 shares (executed at 2026-10-04)","-100.0","1.5","CAD"
+"2026-10-05","LOAN","FUNDX - Sample Fund: 2.0000 Shares on loan (executed at 2026-10-05)","0.0","1.5","FUNDX"
+"2026-10-06","RECALL","FUNDX - Sample Fund: Loan of 2.0000 shares terminated (executed at 2026-10-06)","0.0","1.5","FUNDX"
+"2026-10-07","STKREORG","FUNDX - Sample Fund: Reorganization (executed at 2026-10-07)","0.0","1.5","FUNDX"
