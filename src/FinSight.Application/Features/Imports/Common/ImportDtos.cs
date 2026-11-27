@@ -12,7 +12,8 @@ public sealed record ImportBatchDto(
     DateOnly? PeriodEnd,
     string? ReconciliationWarning,
     IReadOnlyList<ImportAccountDto> Accounts,
-    IReadOnlyList<ImportRowDto> Rows);
+    IReadOnlyList<ImportRowDto> Rows,
+    decimal? StatementClosingBalance);
 
 public sealed record ImportAccountDto(
     Guid AccountId,
@@ -76,5 +77,6 @@ public static class ImportDtoMapper
             }).ToList(),
             batch.Rows.OrderBy(r => r.LineNumber).Select(r => new ImportRowDto(
                 r.Id, r.LineNumber, r.AccountId, r.OccurredOn, r.Description, r.Amount.Amount,
-                r.Type.ToString(), r.Category.ToString(), r.KindHint.ToString(), r.IsDuplicate, r.IsExcluded)).ToList());
+                r.Type.ToString(), r.Category.ToString(), r.KindHint.ToString(), r.IsDuplicate, r.IsExcluded)).ToList(),
+            batch.StatementClosingBalance);
 }

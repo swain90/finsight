@@ -14,6 +14,7 @@ public sealed class ImportBatch : BaseEntity
     public ImportBatchStatus Status { get; private set; } = ImportBatchStatus.PendingReview;
     public DateOnly? PeriodStart { get; private set; }
     public DateOnly? PeriodEnd { get; private set; }
+    public decimal? StatementClosingBalance { get; private set; }  // from the statement itself (PDF); null for CSV
     public DateTimeOffset? CommittedAt { get; private set; }
     public string? ReconciliationWarning { get; private set; }  // max 2000
 
@@ -38,6 +39,14 @@ public sealed class ImportBatch : BaseEntity
         _rows.Add(row);
         if (PeriodStart is null || row.OccurredOn < PeriodStart) PeriodStart = row.OccurredOn;
         if (PeriodEnd is null || row.OccurredOn > PeriodEnd) PeriodEnd = row.OccurredOn;
+    }
+
+    /// <summary>Records the statement's own closing balance and period; call after all rows are added.</summary>
+    public void ApplyStatementSummary(DateOnly periodStart, DateOnly periodEnd, decimal closingBalance)
+    {
+        StatementClosingBalance = closingBalance;
+        PeriodEnd = periodEnd;
+        if (PeriodStart is null || periodStart < PeriodStart) PeriodStart = periodStart;
     }
 
     public void Commit(string? reconciliationWarning)

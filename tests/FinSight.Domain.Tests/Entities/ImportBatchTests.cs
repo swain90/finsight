@@ -27,6 +27,28 @@ public class ImportBatchTests
     }
 
     [Fact]
+    public void ApplyStatementSummary_SetsClosingBalanceAndPeriodEnd()
+    {
+        var b = Batch();
+        b.AddRow(Row(1, new DateOnly(2026, 9, 26)));
+        b.AddRow(Row(2, new DateOnly(2026, 10, 29)));
+
+        b.ApplyStatementSummary(new DateOnly(2026, 9, 30), new DateOnly(2026, 10, 29), 208.40m);
+
+        b.StatementClosingBalance.Should().Be(208.40m);
+        b.PeriodStart.Should().Be(new DateOnly(2026, 9, 26));
+        b.PeriodEnd.Should().Be(new DateOnly(2026, 10, 29));
+    }
+
+    [Fact]
+    public void ApplyStatementSummary_NoRows_UsesSummaryPeriod()
+    {
+        var b = Batch();
+        b.ApplyStatementSummary(new DateOnly(2026, 9, 30), new DateOnly(2026, 10, 29), 0m);
+        (b.PeriodStart, b.PeriodEnd).Should().Be((new DateOnly(2026, 9, 30), new DateOnly(2026, 10, 29)));
+    }
+
+    [Fact]
     public void Commit_FromPending_SetsCommittedAndWarning()
     {
         var b = Batch();

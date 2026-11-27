@@ -184,6 +184,7 @@ export interface ImportBatch {
   reconciliationWarning: string | null;
   accounts: ImportAccount[];
   rows: ImportRow[];
+  statementClosingBalance: number | null;
 }
 
 export interface ImportBatchSummary {

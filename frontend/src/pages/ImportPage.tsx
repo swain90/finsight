@@ -54,11 +54,16 @@ const Review = ({ batch, onClose, onCommitted }: ReviewProps) => {
     setEntries((prev) => {
       const next = { ...prev };
       for (const a of balanceAccounts) {
-        if (!next[a.accountId]) next[a.accountId] = { value: '', asOf: batch.periodEnd ?? '' };
+        if (!next[a.accountId]) {
+          next[a.accountId] = {
+            value: batch.statementClosingBalance != null ? String(batch.statementClosingBalance) : '',
+            asOf: batch.periodEnd ?? '',
+          };
+        }
       }
       return next;
     });
-  }, [balanceAccounts, batch.periodEnd]);
+  }, [balanceAccounts, batch.periodEnd, batch.statementClosingBalance]);
 
   /**
    * Moves rows to another account. Sequential (R22): the server recomputes duplicate fingerprints per

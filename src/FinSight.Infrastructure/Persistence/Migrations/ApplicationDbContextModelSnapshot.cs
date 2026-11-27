@@ -185,6 +185,10 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<decimal?>("StatementClosingBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)

@@ -16,8 +16,9 @@ export const UploadDropzone = ({ onFile, isLoading, error }: UploadDropzoneProps
 
   const accept = (file: File | undefined) => {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      setLocalError('Only .csv files are supported.');
+    const name = file.name.toLowerCase();
+    if (!name.endsWith('.csv') && !name.endsWith('.pdf')) {
+      setLocalError('Only .csv or .pdf files are supported.');
       return;
     }
     setLocalError(null);
@@ -39,13 +40,13 @@ export const UploadDropzone = ({ onFile, isLoading, error }: UploadDropzoneProps
         )}
       >
         <Upload className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-        <p className="text-gray-700 font-medium">Drop a monthly statement CSV here</p>
-        <p className="text-sm text-gray-400 mt-1">CIBC, TD, MBNA, RBC or Wealthsimple, up to 5 MB</p>
+        <p className="text-gray-700 font-medium">Drop a monthly statement here</p>
+        <p className="text-sm text-gray-400 mt-1">CSV exports from CIBC, TD, MBNA, RBC or Wealthsimple, or a CIBC credit card PDF statement.</p>
         <input
           ref={inputRef}
           type="file"
-          accept=".csv,text/csv"
-          aria-label="Statement CSV file"
+          accept=".csv,.pdf,text/csv,application/pdf"
+          aria-label="Statement file"
           className="hidden"
           onChange={(e) => { accept(e.target.files?.[0]); e.target.value = ''; }}
         />
