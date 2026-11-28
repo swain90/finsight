@@ -16,6 +16,12 @@
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
 
+    <!-- CSV statement parsing -->
+    <PackageReference Include="CsvHelper" />
+
+    <!-- PDF statement text extraction -->
+    <PackageReference Include="PdfPig" />
+
     <!-- Password hashing -->
     <PackageReference Include="BCrypt.Net-Next" />
     <PackageReference Include="Bogus" />

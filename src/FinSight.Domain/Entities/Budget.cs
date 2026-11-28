@@ -8,8 +8,8 @@ public sealed class Budget : BaseEntity
 {
     public Guid UserId { get; private set; }
     public TransactionCategory Category { get; private set; }
-    public Money Limit { get; private set; } = Money.Zero("USD");
-    public Money Spent { get; private set; } = Money.Zero("USD");
+    public Money Limit { get; private set; } = Money.Zero(Money.DefaultCurrency);
+    public Money Spent { get; private set; } = Money.Zero(Money.DefaultCurrency);
     public int Month { get; private set; }
     public int Year { get; private set; }
 

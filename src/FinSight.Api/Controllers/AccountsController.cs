@@ -1,5 +1,8 @@
+using FinSight.Api.Extensions;
 using FinSight.Application.Features.Accounts.Commands.CreateAccount;
+using FinSight.Application.Features.Accounts.Commands.UpdateAccount;
 using FinSight.Application.Features.Accounts.Queries.GetAccounts;
+using FinSight.Domain.ValueObjects;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,18 +29,43 @@ public class AccountsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> CreateAccount([FromBody] CreateAccountRequest request, CancellationToken ct)
     {
-        var command = new CreateAccountCommand(request.Name, request.Type, request.Currency, request.InstitutionName);
+        var command = new CreateAccountCommand(request.Name, request.Type, request.Currency, request.InstitutionName,
+            request.Institution, request.Owner, request.ExternalAccountRef);
         var result = await mediator.Send(command, ct);
 
         return result.IsSuccess
             ? CreatedAtAction(nameof(GetAccounts), new { id = result.Value }, result.Value)
-            : BadRequest(new ProblemDetails { Title = result.Error.Code, Detail = result.Error.Description });
+            : this.ToProblemResult(result.Error);
+    }
+
+    /// <summary>Update an account's name, type, institution, owner and external reference</summary>
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> UpdateAccount(Guid id, [FromBody] UpdateAccountRequest request, CancellationToken ct)
+    {
+        var command = new UpdateAccountCommand(id, request.Name, request.Type, request.Institution,
+            request.Owner, request.ExternalAccountRef);
+        var result = await mediator.Send(command, ct);
+        return result.IsSuccess ? NoContent() : this.ToProblemResult(result.Error);
     }
 }
 
 public sealed record CreateAccountRequest(
     string Name,
     FinSight.Domain.Enums.AccountType Type,
-    string Currency = "USD",
-    string? InstitutionName = null
+    string Currency = Money.DefaultCurrency,
+    string? InstitutionName = null,
+    FinSight.Domain.Enums.Institution Institution = FinSight.Domain.Enums.Institution.Other,
+    FinSight.Domain.Enums.AccountOwner Owner = FinSight.Domain.Enums.AccountOwner.Personal,
+    string? ExternalAccountRef = null
+);
+
+public sealed record UpdateAccountRequest(
+    string Name,
+    FinSight.Domain.Enums.AccountType Type,
+    FinSight.Domain.Enums.Institution Institution = FinSight.Domain.Enums.Institution.Other,
+    FinSight.Domain.Enums.AccountOwner Owner = FinSight.Domain.Enums.AccountOwner.Personal,
+    string? ExternalAccountRef = null
 );

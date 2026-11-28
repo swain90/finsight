@@ -16,6 +16,11 @@ export interface Account {
   isActive: boolean;
   lastSyncedAt: string | null;
   createdAt: string;
+  institution: string;
+  owner: string;
+  externalAccountRef: string | null;
+  isLiability: boolean;
+  isInvestment: boolean;
 }
 
 export interface Transaction {

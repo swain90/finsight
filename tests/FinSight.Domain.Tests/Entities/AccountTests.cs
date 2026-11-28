@@ -34,7 +34,7 @@ public class AccountTests
 
         // Act
         account.RecordTransaction("Salary deposit", amount, TransactionType.Credit,
-            DateTimeOffset.UtcNow, TransactionCategory.Income);
+            DateTimeOffset.UtcNow, TransactionCategory.Salary);
 
         // Assert
         account.Balance.Amount.Should().Be(500m);
@@ -51,7 +51,7 @@ public class AccountTests
 
         // Act
         account.RecordTransaction("Groceries", Money.USD(150), TransactionType.Debit, DateTimeOffset.UtcNow,
-            TransactionCategory.Food, "Walmart");
+            TransactionCategory.GroceriesAndFood, "Walmart");
 
         // Assert
         account.Balance.Amount.Should().Be(initialBalance - 150);
@@ -67,5 +67,14 @@ public class AccountTests
         // Act & Assert
         var act = () => account.RecordTransaction("test", Money.USD(100), TransactionType.Debit, DateTimeOffset.UtcNow);
         act.Should().Throw<DomainException>().WithMessage("*inactive*");
+    }
+
+    [Fact]
+    public void Create_WithoutCurrency_DefaultsToCad()
+    {
+        var account = Account.Create(Guid.NewGuid(), "Chequing", AccountType.Checking);
+
+        account.Balance.Currency.Should().Be("CAD");
+        Money.DefaultCurrency.Should().Be("CAD");
     }
 }

@@ -20,8 +20,9 @@ public sealed class UpdateBudgetCommandHandler(
         if (budget is null)
             return Result.Failure(Error.NotFound);
 
+        // Another user's budget is reported as not found so its existence is not disclosed.
         if (budget.UserId != currentUserService.UserId.Value)
-            return Result.Failure(Error.Unauthorized);
+            return Result.Failure(Error.NotFound);
 
         budget.UpdateLimit(new Money(request.NewLimit, budget.Limit.Currency));
         await budgetRepository.UpdateAsync(budget, cancellationToken);

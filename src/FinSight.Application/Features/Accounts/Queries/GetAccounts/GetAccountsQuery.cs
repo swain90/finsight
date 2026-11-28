@@ -14,5 +14,10 @@ public sealed record AccountDto(
     string? InstitutionName,
     bool IsActive,
     DateTimeOffset? LastSyncedAt,
-    DateTimeOffset CreatedAt
+    DateTimeOffset CreatedAt,
+    string Institution,
+    string Owner,
+    string? ExternalAccountRef,
+    bool IsLiability,
+    bool IsInvestment
 );

@@ -37,6 +37,9 @@ public sealed class DatabaseSeeder(ApplicationDbContext context, ILogger<Databas
         await context.SaveChangesAsync(cancellationToken);
 
         SeedTransactions(accounts);
+        // Transaction ids are client-generated: add explicitly so EF inserts them instead of treating
+        // them as modified rows discovered through the account navigation.
+        context.Transactions.AddRange(accounts.SelectMany(a => a.Transactions));
         await context.SaveChangesAsync(cancellationToken);
 
         var budgets = SeedBudgets(users);
@@ -78,22 +81,22 @@ public sealed class DatabaseSeeder(ApplicationDbContext context, ILogger<Databas
 
         foreach (var user in users)
         {
-            // Every user gets a chequing + savings account
-            var chequing = Account.Create(user.Id, "TD Chequing", AccountType.Checking, "CAD", "TD Bank");
-            var savings = Account.Create(user.Id, "EQ Bank Savings", AccountType.Savings, "CAD", "EQ Bank");
+            var userAccounts = new List<Account>
+            {
+                Account.Create(user.Id, "TD Chequing", AccountType.Checking, "CAD", "TD Bank", Institution.Td),
+                Account.Create(user.Id, "CIBC Savings", AccountType.Savings, "CAD", "CIBC", Institution.Cibc),
+            };
 
-            // Demo user also gets a credit card
+            // Demo user also gets credit cards and a corporate chequing account
             if (user.Email == "demo@finsight.dev")
             {
-                var visa = Account.Create(user.Id, "TD Visa Infinite", AccountType.CreditCard, "CAD", "TD Bank");
-                accounts.Add(visa);
+                userAccounts.Add(Account.Create(user.Id, "TD Visa Infinite", AccountType.CreditCard, "CAD", "TD Bank", Institution.Td));
+                userAccounts.Add(Account.Create(user.Id, "CIBC Aeroplan Visa", AccountType.CreditCard, "CAD", "CIBC", Institution.Cibc));
+                userAccounts.Add(Account.Create(user.Id, "RBC Business Chequing", AccountType.Checking, "CAD", "RBC", Institution.Rbc, AccountOwner.Corporation));
             }
 
-            accounts.Add(chequing);
-            accounts.Add(savings);
-
-            foreach (var a in accounts.TakeLast(user.Email == "demo@finsight.dev" ? 3 : 2))
-                a.ClearDomainEvents();
+            foreach (var a in userAccounts) a.ClearDomainEvents();
+            accounts.AddRange(userAccounts);
         }
 
         return accounts;
@@ -183,6 +186,37 @@ public sealed class DatabaseSeeder(ApplicationDbContext context, ILogger<Databas
             }
 
             account.ClearDomainEvents();
+        }
+
+        SeedCardPayments(accounts, now);
+    }
+
+    /// <summary>
+    /// Pays each demo credit card from the matching-institution personal chequing account.
+    /// Card balances are a positive amount owed, so a card Credit reduces it.
+    /// </summary>
+    private static void SeedCardPayments(List<Account> accounts, DateTimeOffset now)
+    {
+        foreach (var card in accounts.Where(a => a.Type == AccountType.CreditCard))
+        {
+            var chequing = accounts.FirstOrDefault(a => a.UserId == card.UserId
+                && a.Type == AccountType.Checking && a.Owner == AccountOwner.Personal);
+            if (chequing is null) continue;
+
+            var value = Rng.Decimal(200, 600);
+            var paidOn = now.AddDays(-10);
+            var groupId = Guid.NewGuid();
+            // Each transaction needs its own Money instance: EF cannot track one owned instance under two owners.
+
+            var outgoing = chequing.RecordTransaction("Credit card payment", new Money(value, "CAD"), TransactionType.Debit,
+                paidOn, TransactionCategory.Uncategorized);
+            var incoming = card.RecordTransaction("Payment - thank you", new Money(value, "CAD"), TransactionType.Credit,
+                paidOn, TransactionCategory.Uncategorized);
+            outgoing.MarkPaired(groupId, TransactionKind.Transfer);
+            incoming.MarkPaired(groupId, TransactionKind.Transfer);
+
+            chequing.ClearDomainEvents();
+            card.ClearDomainEvents();
         }
     }
 

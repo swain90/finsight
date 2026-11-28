@@ -1,4 +1,5 @@
 using FinSight.Application.Common.Interfaces;
+using FinSight.Application.Common.Reporting;
 using FinSight.Domain.Entities;
 using FinSight.Domain.Enums;
 using Microsoft.Extensions.Logging;
@@ -29,9 +30,14 @@ public sealed class AnomalyDetectionService(ILogger<AnomalyDetectionService> log
     private const double ZScoreThreshold = 3.0;
 
     public Task<IReadOnlyList<Guid>> DetectAnomaliesAsync(
-        IReadOnlyList<Transaction> transactions,
+        IReadOnlyList<Transaction> allTransactions,
         CancellationToken cancellationToken = default)
     {
+        // Only real personal spending debits are analysed (no transfers, owner pay, trades, corporate).
+        var transactions = allTransactions
+            .Where(t => PersonalLedger.IsPersonalSpending(t) && t.Type == TransactionType.Debit)
+            .ToList();
+
         if (transactions.Count < 5)
         {
             // Not enough data for meaningful anomaly detection

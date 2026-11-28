@@ -1,6 +1,9 @@
 using FinSight.Application.Common.Interfaces;
 using FinSight.Domain.Common;
 using FinSight.Domain.Repositories;
+using FinSight.Infrastructure.Imports;
+using FinSight.Infrastructure.Imports.Pdf;
+using FinSight.Infrastructure.Imports.Readers;
 using FinSight.Infrastructure.Persistence;
 using FinSight.Infrastructure.Persistence.Repositories;
 using FinSight.Infrastructure.Services;
@@ -41,10 +44,16 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<ITransactionRepository, TransactionRepository>();
         services.AddScoped<IBudgetRepository, BudgetRepository>();
+        services.AddScoped<IImportBatchRepository, ImportBatchRepository>();
+        services.AddScoped<IMerchantRuleRepository, MerchantRuleRepository>();
+        services.AddScoped<IBalanceSnapshotRepository, BalanceSnapshotRepository>();
 
         // ─── Auth Services ─────────────────────────────────────────────────
         services.AddHttpContextAccessor();
         services.AddScoped<IJwtService, JwtService>();
+        services.AddScoped<IStatementParser, StatementParser>();
+        services.AddSingleton<IStatementReader, WealthsimpleStatementReader>();
+        services.AddSingleton<IPdfStatementReader, CibcCreditCardPdfReader>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
 

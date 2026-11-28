@@ -1,5 +1,6 @@
 using FinSight.Application.Common.Interfaces;
 using FinSight.Application.Features.Transactions.Commands.RecordTransaction;
+using FinSight.Application.Tests.Common;
 using FinSight.Domain.Common;
 using FinSight.Domain.Entities;
 using FinSight.Domain.Enums;
@@ -15,10 +16,12 @@ public sealed class RecordTransactionCommandHandlerTests
 {
     private readonly IAccountRepository _accountRepository = Substitute.For<IAccountRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
+    private readonly IBudgetRepository _budgetRepository = Substitute.For<IBudgetRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly IApplicationDbContext _db = HandlerTestBase.CreateDbContext();
 
     private RecordTransactionCommandHandler CreateSut() =>
-        new(_accountRepository, _currentUser, _unitOfWork);
+        new(_accountRepository, _budgetRepository, _currentUser, _db, _unitOfWork);
 
     private static Account MakeAccount(Guid userId)
     {
@@ -43,7 +46,7 @@ public sealed class RecordTransactionCommandHandlerTests
         var command = new RecordTransactionCommand(
             account.Id, "Tim Hortons", 5.75m, "CAD",
             TransactionType.Debit, DateTimeOffset.UtcNow,
-            TransactionCategory.Food, "Tim Hortons");
+            TransactionCategory.GroceriesAndFood, "Tim Hortons");
 
         // Act
         var result = await CreateSut().Handle(command, CancellationToken.None);
@@ -127,7 +130,7 @@ public sealed class RecordTransactionCommandHandlerTests
 
         var command = new RecordTransactionCommand(
             account.Id, "Salary Deposit", 5000m, "CAD",
-            TransactionType.Credit, DateTimeOffset.UtcNow, TransactionCategory.Income);
+            TransactionType.Credit, DateTimeOffset.UtcNow, TransactionCategory.Salary);
 
         // Act
         await CreateSut().Handle(command, CancellationToken.None);

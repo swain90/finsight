@@ -21,7 +21,7 @@ public sealed class BudgetsEndpointTests(FinSightWebApplicationFactory factory)
 
         var response = await client.PostAsJsonAsync("/api/v1/budgets", new
         {
-            Category = (int)TransactionCategory.Food,
+            Category = (int)TransactionCategory.GroceriesAndFood,
             LimitAmount = 500m,
             Currency = "CAD",
             Month = ThisMonth,
@@ -73,6 +73,27 @@ public sealed class BudgetsEndpointTests(FinSightWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task GetBudgets_WithTwoBudgetsInMonth_ReturnsBoth()
+    {
+        var client = await factory.CreateAuthenticatedClientAsync();
+
+        foreach (var category in new[] { TransactionCategory.Transportation, TransactionCategory.Entertainment })
+        {
+            await client.PostAsJsonAsync("/api/v1/budgets", new
+            {
+                Category = (int)category,
+                LimitAmount = 100m, Currency = "CAD", Month = ThisMonth, Year = ThisYear
+            });
+        }
+
+        var response = await client.GetAsync($"/api/v1/budgets/{ThisYear}/{ThisMonth}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var budgets = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement[]>();
+        budgets.Should().HaveCount(2);
+    }
+
+    [Fact]
     public async Task GetBudgetSummary_ReturnsAggregatedTotals()
     {
         var client = await factory.CreateAuthenticatedClientAsync();
@@ -80,12 +101,12 @@ public sealed class BudgetsEndpointTests(FinSightWebApplicationFactory factory)
         // Create 2 budgets
         await client.PostAsJsonAsync("/api/v1/budgets", new
         {
-            Category = (int)TransactionCategory.Healthcare,
+            Category = (int)TransactionCategory.HealthAndMedical,
             LimitAmount = 400m, Currency = "USD", Month = ThisMonth, Year = ThisYear
         });
         await client.PostAsJsonAsync("/api/v1/budgets", new
         {
-            Category = (int)TransactionCategory.Shopping,
+            Category = (int)TransactionCategory.ShoppingAndClothing,
             LimitAmount = 600m, Currency = "USD", Month = ThisMonth, Year = ThisYear
         });
 
@@ -104,7 +125,7 @@ public sealed class BudgetsEndpointTests(FinSightWebApplicationFactory factory)
         // Create budget
         var createResp = await client.PostAsJsonAsync("/api/v1/budgets", new
         {
-            Category = (int)TransactionCategory.Education,
+            Category = (int)TransactionCategory.EducationAndWork,
             LimitAmount = 200m, Currency = "CAD", Month = ThisMonth, Year = ThisYear
         });
         var budgetId = await createResp.Content.ReadFromJsonAsync<Guid>();
@@ -112,7 +133,7 @@ public sealed class BudgetsEndpointTests(FinSightWebApplicationFactory factory)
         // Update it
         var updateResp = await client.PutAsJsonAsync($"/api/v1/budgets/{budgetId}", new
         {
-            NewLimitAmount = 350m
+            NewLimit = 350m
         });
 
         updateResp.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -125,7 +146,7 @@ public sealed class BudgetsEndpointTests(FinSightWebApplicationFactory factory)
 
         var createResp = await client.PostAsJsonAsync("/api/v1/budgets", new
         {
-            Category = (int)TransactionCategory.Travel,
+            Category = (int)TransactionCategory.TravelAndVacation,
             LimitAmount = 1000m, Currency = "USD", Month = ThisMonth, Year = ThisYear
         });
         var budgetId = await createResp.Content.ReadFromJsonAsync<Guid>();
@@ -137,5 +158,39 @@ public sealed class BudgetsEndpointTests(FinSightWebApplicationFactory factory)
         var getResp = await client.GetAsync($"/api/v1/budgets/{ThisYear}/{ThisMonth}");
         var body = await getResp.Content.ReadAsStringAsync();
         body.Should().NotContain(budgetId.ToString());
+    }
+
+    [Fact]
+    public async Task DeleteBudget_OtherUsersBudget_Returns404()
+    {
+        var (owner, other) = (await factory.CreateAuthenticatedClientAsync(), await factory.CreateAuthenticatedClientAsync());
+        var budgetId = await CreateBudgetAsync(owner);
+
+        var response = await other.DeleteAsync($"/api/v1/budgets/{budgetId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await owner.DeleteAsync($"/api/v1/budgets/{budgetId}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task UpdateBudget_OtherUsersBudget_Returns404()
+    {
+        var (owner, other) = (await factory.CreateAuthenticatedClientAsync(), await factory.CreateAuthenticatedClientAsync());
+        var budgetId = await CreateBudgetAsync(owner);
+
+        var response = await other.PutAsJsonAsync($"/api/v1/budgets/{budgetId}", new { NewLimit = 999m });
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    private static async Task<Guid> CreateBudgetAsync(HttpClient client)
+    {
+        var resp = await client.PostAsJsonAsync("/api/v1/budgets", new
+        {
+            Category = (int)TransactionCategory.Utilities,
+            LimitAmount = 100m, Currency = "CAD", Month = ThisMonth, Year = ThisYear
+        });
+        resp.EnsureSuccessStatusCode();
+        return await resp.Content.ReadFromJsonAsync<Guid>();
     }
 }

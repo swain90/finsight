@@ -21,7 +21,7 @@ public sealed class CreateBudgetCommandHandlerTests : HandlerTestBase
     private CreateBudgetCommandHandler CreateSut() => new(_budgets, _currentUser, _uow);
 
     private static readonly CreateBudgetCommand ValidCommand = new(
-        TransactionCategory.Food, 500m, "CAD", 6, 2025);
+        TransactionCategory.GroceriesAndFood, 500m, "CAD", 6, 2025);
 
     [Fact]
     public async Task Handle_NoBudgetExists_ShouldCreateAndReturnId()
@@ -30,7 +30,7 @@ public sealed class CreateBudgetCommandHandlerTests : HandlerTestBase
         var userId = Guid.NewGuid();
         _currentUser.IsAuthenticated.Returns(true);
         _currentUser.UserId.Returns(userId);
-        _budgets.GetByCategoryAsync(userId, TransactionCategory.Food, 6, 2025, Arg.Any<CancellationToken>())
+        _budgets.GetByCategoryAsync(userId, TransactionCategory.GroceriesAndFood, 6, 2025, Arg.Any<CancellationToken>())
             .ReturnsNull();
 
         // Act
@@ -40,7 +40,7 @@ public sealed class CreateBudgetCommandHandlerTests : HandlerTestBase
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeEmpty();
         await _budgets.Received(1).AddAsync(
-            Arg.Is<Budget>(b => b.Category == TransactionCategory.Food && b.Limit.Amount == 500m),
+            Arg.Is<Budget>(b => b.Category == TransactionCategory.GroceriesAndFood && b.Limit.Amount == 500m),
             Arg.Any<CancellationToken>());
     }
 
@@ -53,8 +53,8 @@ public sealed class CreateBudgetCommandHandlerTests : HandlerTestBase
         _currentUser.UserId.Returns(userId);
 
         // An existing budget already exists for this category/month/year
-        var existing = Budget.Create(userId, TransactionCategory.Food, new Money(400m, "CAD"), 6, 2025);
-        _budgets.GetByCategoryAsync(userId, TransactionCategory.Food, 6, 2025, Arg.Any<CancellationToken>())
+        var existing = Budget.Create(userId, TransactionCategory.GroceriesAndFood, new Money(400m, "CAD"), 6, 2025);
+        _budgets.GetByCategoryAsync(userId, TransactionCategory.GroceriesAndFood, 6, 2025, Arg.Any<CancellationToken>())
             .Returns(existing);
 
         // Act

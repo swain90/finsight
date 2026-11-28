@@ -112,6 +112,6 @@ public sealed class RunAnomalyDetectionCommandHandlerTests
             Money.CAD(100),
             TransactionType.Debit,
             DateTimeOffset.UtcNow,
-            TransactionCategory.Food);
+            TransactionCategory.GroceriesAndFood);
     }
 }

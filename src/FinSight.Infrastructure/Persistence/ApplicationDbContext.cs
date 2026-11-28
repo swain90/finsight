@@ -14,6 +14,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Budget> Budgets => Set<Budget>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<BalanceSnapshot> BalanceSnapshots => Set<BalanceSnapshot>();
+    public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
+    public DbSet<ImportRow> ImportRows => Set<ImportRow>();
+    public DbSet<MerchantRule> MerchantRules => Set<MerchantRule>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

@@ -47,7 +47,7 @@ public sealed class InsightsEndpointTests(FinSightWebApplicationFactory factory)
             Currency = "USD",
             Type = (int)TransactionType.Debit,
             OccurredAt = DateTimeOffset.UtcNow,
-            Category = (int)TransactionCategory.Food,
+            Category = (int)TransactionCategory.GroceriesAndFood,
             MerchantName = "Whole Foods"
         });
 

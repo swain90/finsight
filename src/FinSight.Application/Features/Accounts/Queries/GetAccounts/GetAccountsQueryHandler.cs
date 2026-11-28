@@ -1,5 +1,6 @@
 using FinSight.Application.Common.Interfaces;
 using FinSight.Domain.Common;
+using FinSight.Domain.Enums;
 using FinSight.Domain.Repositories;
 using MediatR;
 
@@ -19,7 +20,9 @@ public sealed class GetAccountsQueryHandler(
         var dtos = accounts.Select(a => new AccountDto(
             a.Id, a.Name, a.Type.ToString(),
             a.Balance.Amount, a.Balance.Currency,
-            a.InstitutionName, a.IsActive, a.LastSyncedAt, a.CreatedAt
+            a.InstitutionName, a.IsActive, a.LastSyncedAt, a.CreatedAt,
+            a.Institution.ToString(), a.Owner.ToString(), a.ExternalAccountRef,
+            a.Type.IsLiability(), a.Type.IsInvestment()
         )).ToList().AsReadOnly();
 
         return Result.Success<IReadOnlyList<AccountDto>>(dtos);

@@ -47,6 +47,15 @@ public enum TransactionType
 /// These categories align with common personal finance frameworks
 /// (Mint, YNAB, Personal Capital) for user familiarity.
 /// </summary>
+public enum TransactionKind
+{
+    Regular = 0,
+    Transfer = 1,
+    OwnerPay = 2,
+    InvestmentTrade = 3,
+    PendingTransfer = 4
+}
+
 public enum TransactionCategory
 {
     /// <summary>Not yet categorized — triggers ML categorization job.</summary>
@@ -95,6 +104,8 @@ public enum TransactionCategory
     InvestmentIncome = 42,
     /// <summary>Tax refunds, government benefits.</summary>
     GovernmentBenefits = 43,
+    /// <summary>Salary or dividends paid to the owner by their corporation.</summary>
+    PayFromCorporation = 44,
 
     // ---- OTHER ------------------------------------------------------------
     /// <summary>Education: tuition, books, courses, software tools.</summary>
@@ -145,7 +156,40 @@ public enum AccountType
     Loan = 7,
 
     /// <summary>Physical cash on hand tracked manually.</summary>
-    Cash = 8
+    Cash = 8,
+
+    /// <summary>Line of credit. Balance = amount owed (liability).</summary>
+    LineOfCredit = 9,
+
+    /// <summary>Tax-Free Savings Account (Canada).</summary>
+    Tfsa = 10,
+
+    /// <summary>Registered Retirement Savings Plan (Canada).</summary>
+    Rrsp = 11,
+
+    /// <summary>First Home Savings Account (Canada).</summary>
+    Fhsa = 12,
+
+    /// <summary>Cryptocurrency holdings.</summary>
+    Crypto = 13
+}
+
+/// <summary>Who owns an account: the individual or their corporation.</summary>
+public enum AccountOwner
+{
+    Personal = 0,
+    Corporation = 1
+}
+
+/// <summary>Financial institution an account is held at.</summary>
+public enum Institution
+{
+    Other = 0,
+    Cibc = 1,
+    Td = 2,
+    Mbna = 3,
+    Rbc = 4,
+    Wealthsimple = 5
 }
 
 /// <summary>
@@ -206,4 +250,12 @@ public enum BudgetAlertThreshold
 
     /// <summary>Alert when budget is fully spent (100%).</summary>
     FullySpent = 100
+}
+
+/// <summary>Lifecycle of a statement import batch.</summary>
+public enum ImportBatchStatus
+{
+    PendingReview = 1,
+    Committed = 2,
+    Discarded = 3
 }

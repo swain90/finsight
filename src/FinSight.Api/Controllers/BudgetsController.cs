@@ -1,4 +1,6 @@
+using FinSight.Api.Extensions;
 using FinSight.Application.Features.Budgets.Commands.CreateBudget;
+using FinSight.Application.Features.Budgets.Commands.DeleteBudget;
 using FinSight.Application.Features.Budgets.Commands.UpdateBudget;
 using FinSight.Application.Features.Budgets.Queries.GetBudgets;
 using FinSight.Application.Features.Budgets.Queries.GetBudgetSummary;
@@ -41,9 +43,7 @@ public class BudgetsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(command, ct);
 
         if (result.IsFailure)
-            return result.Error.Code.StartsWith("Conflict")
-                ? Conflict(new ProblemDetails { Title = result.Error.Code, Detail = result.Error.Description })
-                : BadRequest(new ProblemDetails { Title = result.Error.Code, Detail = result.Error.Description });
+            return this.ToProblemResult(result.Error);
 
         return CreatedAtAction(nameof(GetBudgets),
             new { year = command.Year, month = command.Month }, result.Value);
@@ -57,11 +57,18 @@ public class BudgetsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new UpdateBudgetCommand(budgetId, request.NewLimit), ct);
 
-        return result.IsSuccess
-            ? NoContent()
-            : result.Error == FinSight.Domain.Common.Error.NotFound
-                ? NotFound()
-                : Unauthorized();
+        return result.IsSuccess ? NoContent() : this.ToProblemResult(result.Error);
+    }
+
+    /// <summary>Delete a budget</summary>
+    [HttpDelete("{budgetId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteBudget(Guid budgetId, CancellationToken ct)
+    {
+        var result = await mediator.Send(new DeleteBudgetCommand(budgetId), ct);
+
+        return result.IsSuccess ? NoContent() : this.ToProblemResult(result.Error);
     }
 }
 

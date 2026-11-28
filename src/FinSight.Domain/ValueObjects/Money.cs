@@ -2,6 +2,9 @@ namespace FinSight.Domain.ValueObjects;
 
 public sealed record Money
 {
+    /// <summary>Currency used when none is specified. FinSight is built for Canadian users.</summary>
+    public const string DefaultCurrency = "CAD";
+
     public decimal Amount { get; }
     public string Currency { get; }
 

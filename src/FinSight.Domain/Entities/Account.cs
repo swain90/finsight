@@ -13,18 +13,25 @@ public sealed class Account : BaseEntity
     public Guid UserId { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public AccountType Type { get; private set; }
-    public Money Balance { get; private set; } = Money.Zero("USD");
+    public Money Balance { get; private set; } = Money.Zero(Money.DefaultCurrency);
     public string? InstitutionName { get; private set; }
+    public Institution Institution { get; private set; } = Institution.Other;
+    public AccountOwner Owner { get; private set; } = AccountOwner.Personal;
+    public string? ExternalAccountRef { get; private set; }  // max 50
     public string? PlaidAccountId { get; private set; }  // external reference
     public bool IsActive { get; private set; } = true;
     public DateTimeOffset? LastSyncedAt { get; private set; }
+    public DateOnly? LatestSnapshotAsOf { get; private set; }
 
     public User User { get; private set; } = null!;
     public IReadOnlyCollection<Transaction> Transactions => _transactions.AsReadOnly();
 
     private Account() { }  // EF Core
 
-    public static Account Create(Guid userId, string name, AccountType type, string currency = "USD", string? institutionName = null)
+    public static Account Create(Guid userId, string name, AccountType type, string currency = Money.DefaultCurrency, string? institutionName = null,
+        Institution institution = Institution.Other,
+        AccountOwner owner = AccountOwner.Personal,
+        string? externalAccountRef = null)
     {
         var account = new Account
         {
@@ -32,7 +39,10 @@ public sealed class Account : BaseEntity
             Name = name.Trim(),
             Type = type,
             Balance = Money.Zero(currency),
-            InstitutionName = institutionName
+            InstitutionName = institutionName,
+            Institution = institution,
+            Owner = owner,
+            ExternalAccountRef = externalAccountRef
         };
 
         account.AddDomainEvent(new AccountCreatedEvent(account.Id, userId, name, type));
@@ -50,16 +60,43 @@ public sealed class Account : BaseEntity
         if (!IsActive)
             throw new DomainException("Cannot record transactions on an inactive account.");
 
-        var transaction = Transaction.Create(Id, description, amount, type, occurredAt, category, merchantName);
+        var transaction = Transaction.Create(Id, description, amount, type, occurredAt, category, merchantName, this);
 
-        Balance = type == TransactionType.Credit
-            ? Balance.Add(amount)
-            : Balance.Subtract(amount);
+        // Liabilities store a positive amount owed: debits increase it, credits reduce it.
+        var increases = Type.IsLiability() ? type == TransactionType.Debit : type == TransactionType.Credit;
+        Balance = increases ? Balance.Add(amount) : Balance.Subtract(amount);
 
         _transactions.Add(transaction);
         SetUpdatedAt();
         AddDomainEvent(new TransactionRecordedEvent(transaction.Id, Id, UserId, amount, type));
 
+        return transaction;
+    }
+
+    /// <summary>Records an imported statement row. Does not change <see cref="Balance"/>.</summary>
+    public Transaction ImportTransaction(
+        string description,
+        Money amount,
+        TransactionType type,
+        DateTimeOffset occurredAt,
+        TransactionCategory category,
+        TransactionKind kind,
+        Guid importBatchId,
+        string fingerprint,
+        string? merchantName = null)
+    {
+        if (!IsActive)
+            throw new DomainException("Cannot import transactions into an inactive account.");
+        if (amount.Currency != Balance.Currency)
+            throw new DomainException($"Transaction currency {amount.Currency} does not match account currency {Balance.Currency}.");
+        if (kind is TransactionKind.Transfer or TransactionKind.OwnerPay)
+            throw new DomainException("Imported transactions cannot start as Transfer or OwnerPay.");
+
+        var transaction = Transaction.Create(Id, description, amount, type, occurredAt, category, merchantName,
+            this, kind, importBatchId, fingerprint);
+
+        _transactions.Add(transaction);
+        SetUpdatedAt();
         return transaction;
     }
 
@@ -74,6 +111,45 @@ public sealed class Account : BaseEntity
     {
         Balance = newBalance;
         LastSyncedAt = DateTimeOffset.UtcNow;
+        SetUpdatedAt();
+    }
+
+    /// <summary>Records a statement balance. Only moves <see cref="Balance"/> when the snapshot is not older than the latest one.</summary>
+    public BalanceSnapshot RecordBalanceSnapshot(DateOnly asOf, Money balance, Guid? importBatchId)
+    {
+        var snapshot = BalanceSnapshot.Create(Id, asOf, balance, importBatchId);
+        if (LatestSnapshotAsOf is null || asOf >= LatestSnapshotAsOf)
+        {
+            Balance = new Money(balance.Amount, balance.Currency);  // never share a Money instance with the snapshot
+            LatestSnapshotAsOf = asOf;
+            SetUpdatedAt();
+        }
+        return snapshot;
+    }
+
+    /// <summary>Used by undo: resets balance to the given latest snapshot, or to zero when none remain.</summary>
+    public void ResetBalanceFromSnapshot(BalanceSnapshot? latest)
+    {
+        if (latest is null)
+        {
+            Balance = Money.Zero(Balance.Currency);
+            LatestSnapshotAsOf = null;
+        }
+        else
+        {
+            Balance = new Money(latest.Balance.Amount, latest.Balance.Currency);  // never share a Money instance with the snapshot
+            LatestSnapshotAsOf = latest.AsOf;
+        }
+        SetUpdatedAt();
+    }
+
+    public void UpdateDetails(string name, AccountType type, Institution institution, AccountOwner owner, string? externalAccountRef)
+    {
+        Name = name.Trim();
+        Type = type;
+        Institution = institution;
+        Owner = owner;
+        ExternalAccountRef = externalAccountRef;
         SetUpdatedAt();
     }
 

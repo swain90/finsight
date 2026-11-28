@@ -1,5 +1,8 @@
 import axios, { AxiosError } from 'axios';
-import type { AuthResult } from '../types';
+import type {
+  AppSettings, AuthResult, ImportBatch, ImportBatchSummary, ImportRow, ImportRowPatch,
+  ReconciliationResult, ClosingBalanceInput, NeedsAttentionItem, NetWorth, CorporationSummary, PersonalIncome,
+} from '../types';
 
 export const api = axios.create({
   baseURL: '/api/v1',
@@ -104,9 +107,110 @@ export const authApi = {
   },
 };
 
+export type AccountPayload = {
+  name: string;
+  type: number;
+  institution: number;
+  owner: number;
+  externalAccountRef: string | null;
+};
+
+export const accountsApi = {
+  async update(id: string, payload: AccountPayload): Promise<void> {
+    await api.put(`/accounts/${id}`, payload);
+  },
+};
+
+export const settingsApi = {
+  async get(): Promise<AppSettings> {
+    const { data } = await api.get<AppSettings>('/settings');
+    return data;
+  },
+  async update(payload: AppSettings): Promise<AppSettings> {
+    const { data } = await api.put<AppSettings>('/settings', payload);
+    return data;
+  },
+};
+
 export const transactionsApi = {
   async record(payload: RecordTransactionPayload): Promise<string> {
     const { data } = await api.post<string>('/transactions', payload);
     return data;
+  },
+  async needsAttention(): Promise<NeedsAttentionItem[]> {
+    const { data } = await api.get<NeedsAttentionItem[]>('/transactions/needs-attention');
+    return data;
+  },
+  async resolveTransfer(id: string, partnerId?: string): Promise<void> {
+    await api.post(`/transactions/${id}/resolve-transfer`, { partnerId: partnerId ?? null });
+  },
+};
+
+export const reportsApi = {
+  async netWorth(months = 12): Promise<NetWorth> {
+    const { data } = await api.get<NetWorth>('/reports/net-worth', { params: { months } });
+    return data;
+  },
+  async corporation(fiscalYear?: number): Promise<CorporationSummary> {
+    const { data } = await api.get<CorporationSummary>('/reports/corporation', { params: { fiscalYear } });
+    return data;
+  },
+  async personalIncome(year?: number): Promise<PersonalIncome> {
+    const { data } = await api.get<PersonalIncome>('/reports/personal-income', { params: { year } });
+    return data;
+  },
+};
+
+/** Readable message from a failed request: ProblemDetails detail, then title, then a fallback. */
+export const errorMessage = (err: unknown, fallback = 'Something went wrong. Please try again.'): string => {
+  const e = err as AxiosError<{ detail?: string; title?: string }>;
+  return e?.response?.data?.detail || e?.response?.data?.title || fallback;
+};
+
+/** ProblemDetails title carries the error code (e.g. "Import.AlreadyImported"). */
+export const errorCode = (err: unknown): string | undefined =>
+  (err as AxiosError<{ title?: string }>)?.response?.data?.title;
+
+export const importsApi = {
+  async upload(file: File, accountId?: string): Promise<ImportBatch> {
+    const form = new FormData();
+    form.append('file', file);
+    if (accountId) form.append('accountId', accountId);
+    // Let the browser set the multipart boundary.
+    const { data } = await api.post<ImportBatch>('/imports', form, {
+      headers: { 'Content-Type': undefined as unknown as string },
+    });
+    return data;
+  },
+  async list(): Promise<ImportBatchSummary[]> {
+    const { data } = await api.get<ImportBatchSummary[]>('/imports');
+    return data;
+  },
+  async get(id: string): Promise<ImportBatch> {
+    const { data } = await api.get<ImportBatch>(`/imports/${id}`);
+    return data;
+  },
+  async updateRow(id: string, rowId: string, patch: ImportRowPatch): Promise<ImportRow> {
+    const { data } = await api.patch<ImportRow>(`/imports/${id}/rows/${rowId}`, patch);
+    return data;
+  },
+  /** `asOf` is the statement's closing date (yyyy-mm-dd); the check compares against the snapshot before it. */
+  async reconciliation(
+    id: string,
+    accountId: string,
+    closingBalance: number,
+    asOf?: string
+  ): Promise<ReconciliationResult> {
+    const { data } = await api.get<ReconciliationResult>(`/imports/${id}/reconciliation`, {
+      params: { accountId, closingBalance, ...(asOf ? { asOf } : {}) },
+    });
+    return data;
+  },
+  async commit(id: string, balances: ClosingBalanceInput[]): Promise<ImportBatch> {
+    const { data } = await api.post<ImportBatch>(`/imports/${id}/commit`, { balances });
+    return data;
+  },
+  async remove(id: string): Promise<void> {
+    await api.delete(`/imports/${id}`);
   },
 };
