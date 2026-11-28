@@ -9,6 +9,9 @@ export const useImport = (id: string | null) =>
   useQuery<ImportBatch>(['import', id], () => importsApi.get(id as string), {
     enabled: !!id,
     staleTime: Infinity,
+    // The batch's account picker lists the user's current accounts, which can change on the Accounts page while
+    // the batch sits in the cache, so reopening a batch always refetches it.
+    refetchOnMount: 'always',
   });
 
 export const useUploadImport = () => {
